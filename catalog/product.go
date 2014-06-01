@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 )
