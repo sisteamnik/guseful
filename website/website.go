@@ -1,11 +1,5 @@
 package website
 
-import (
-	"errors"
-	"net/url"
-	"strings"
-)
-
 type (
 	Site struct {
 		Id       int64
