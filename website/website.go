@@ -1,5 +1,11 @@
 package website
 
+import (
+	"errors"
+	"net/url"
+	"strings"
+)
+
 type (
 	Site struct {
 		Id       int64
@@ -7,24 +13,28 @@ type (
 		Www      bool
 		Https    bool
 		Encoding string
+		Exist    bool
 
 		Allow bool
 
-		ChangeFreq changefreq
+		ChangeFreq string
+		Pages      int64
 
 		Description string
 	}
-
-	changefreq string
 
 	SitePage struct {
 		Id     int64
 		SiteId int64
 		Url    string
+		Error  int64
+
+		Visited int64
+		Body    []byte
 	}
 )
 
 const (
-	WEEKLY changefreq = "weekly"
-	DAILY             = "daily"
+	WEEKLY string = "weekly"
+	DAILY         = "daily"
 )
