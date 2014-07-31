@@ -19,7 +19,7 @@ type Product struct {
 	Modified     int64
 	Published    bool
 	Viewed       int64
-	Properties   []ProductProperty
+	Properties   []ProductProperty `db:"-"`
 }
 
 func (p *Product) UpdateModifiedDate() {
