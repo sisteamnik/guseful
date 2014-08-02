@@ -15,11 +15,14 @@ type Product struct {
 	CategoryId   int64
 	Delivery     bool
 	ImgUrl       string
-	Created      int64
-	Modified     int64
-	Published    bool
-	Viewed       int64
-	Properties   []ProductProperty `db:"-"`
+	Title        string
+	Description  string
+
+	Created    int64
+	Modified   int64
+	Published  bool
+	Viewed     int64
+	Properties []ProductProperty `db:"-"`
 }
 
 func (p *Product) UpdateModifiedDate() {

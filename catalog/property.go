@@ -9,19 +9,28 @@ type (
 		GroupId  int64
 	}
 
-	PropertyTraitValue struct {
-		Id    int64
-		Value string
-	}
-
-	PropertyMeasurementValue struct {
-		Id    int64
-		Value int64
+	PropertyValue struct {
+		Id     int64
+		Value  string
+		NameId int64
 	}
 
 	PropertyUnit struct {
-		Id    int64
-		Value string
+		Id      int64
+		Value   string
+		IsTrait bool
+	}
+
+	PropertyGroup struct {
+		Id   int64
+		Name string
+	}
+
+	PropertyBind struct {
+		Id        int64
+		ProductId int64
+		NameId    int64
+		ValueId   int64
 	}
 
 	Property struct {
@@ -32,7 +41,7 @@ type (
 		IsTrait bool
 		GroupId int64
 
-		Value    interface{}
+		Value    string
 		Name     string
 		Unit     string
 		Position int64
@@ -44,26 +53,25 @@ type (
 		Position int64
 		Childs   []Property
 	}
-)
 
-func BuildProperties(props []Property) (r []ProductProperty) {
-	for i := range props {
-		if props[i].ParentId == 0 {
-			l := ProductProperty{
-				Id:       props[i].Id,
-				Name:     props[i].Name,
-				Position: props[i].Position,
-			}
-			for j := range props {
-				if props[j].ParentId == props[i].Id {
-					if props[j].Shortable {
-						props[j].Short = fmt.Sprintf(props[j].ShortTemplate, props[j].Value)
-					}
-					l.Childs = append(l.Childs, props[j])
-				}
-			}
-			r = append(r, l)
-		}
+	ProductVendor struct {
+		Id   int64
+		Name string
 	}
-	return
-}
+
+	ProductCollection struct {
+		Id   int64
+		Name string
+	}
+
+	ProductModel struct {
+		Id   int64
+		Name string
+	}
+
+	ProductCategory struct {
+		Id       int64
+		Name     string
+		ParentId int64
+	}
+)
