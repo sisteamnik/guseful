@@ -1,7 +1,7 @@
 package stores
 
 type (
-	Stores struct {
+	Store struct {
 		Id      int64
 		Title   string
 		Website string
@@ -10,9 +10,9 @@ type (
 		Updated int64
 	}
 
-	StoresProducts struct {
+	StoreProduct struct {
 		Id        int64
-		StireId   int64
+		StoreId   int64
 		ProductId int64
 		Title     string
 		Price     float64
@@ -22,7 +22,7 @@ type (
 		Updated int64
 	}
 
-	StoresBusket struct {
+	StoreBasket struct {
 		Id        int64
 		UserId    int64
 		StoreId   int64
