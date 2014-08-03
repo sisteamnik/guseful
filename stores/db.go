@@ -57,10 +57,18 @@ func BasketAdd(db *gorp.DbMap, userid, storeid, productid, count int64) error {
 		Count:     count,
 	}
 
-	_, err := db.Exec("update StoreBaket set Count = Count + 1 where UserId=? and"+
-		" StoreId=? and ProductId=?", userid, storeid, productid)
+	_, err := db.Exec("update StoreBasket set Count = Count + 1 where UserId=?"+
+		" and StoreId=? and ProductId=?", userid, storeid, productid)
 	if err != nil {
 		err := db.Insert(&b)
+		return err
 	}
 	return nil
+}
+
+func BasketGet(db *gorp.DbMap, userid, storeid int64) ([]StoreBasket, error) {
+	var b = []StoreBasket{}
+	_, err := db.Select(&b, "select * from StoreBasket where "+
+		"UserId = ? and StoreId = ?", userid, storeid)
+	return b, err
 }
