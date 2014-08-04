@@ -50,21 +50,30 @@ func CreateBasket(db *gorp.DbMap, userid, storeid, productid,
 }
 
 func BasketAdd(db *gorp.DbMap, userid, storeid, productid, count int64) error {
+	t := time.Now().UnixNano()
 	b := StoreBasket{
 		UserId:    userid,
 		StoreId:   storeid,
 		ProductId: productid,
 		Count:     count,
+		Created:   t,
+		Updated:   t,
 	}
 
-	_, err := db.Exec("update StoreBasket set Count = Count + 1 where UserId=?"+
-		" and StoreId=? and ProductId=?", userid, storeid, productid)
+	res, err := db.Exec("update StoreBasket set Count = Count + ?, Updated = ?"+
+		" where UserId = ? and StoreId=? and ProductId=?",
+		count, t, userid, storeid, productid)
 	if err != nil {
+		return err
+	}
+	if num, err := res.RowsAffected(); err == nil && num == 0 {
 		err := db.Insert(&b)
 		return err
 	}
-	return nil
+	return err
 }
+
+func BasketSetCount()
 
 func BasketGet(db *gorp.DbMap, userid, storeid int64) ([]StoreBasket, error) {
 	var b = []StoreBasket{}
