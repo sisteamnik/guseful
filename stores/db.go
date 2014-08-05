@@ -1,6 +1,7 @@
 package stores
 
 import (
+	"errors"
 	"github.com/coopernurse/gorp"
 	"time"
 )
@@ -39,16 +40,6 @@ func (p *StoreProduct) Update(db *gorp.DbMap) error {
 	return err
 }
 
-func CreateBasket(db *gorp.DbMap, userid, storeid, productid,
-	count int64) error {
-	//b := StoreBasket{
-	//	UserId:    userid,
-	//	StoreId:   storeid,
-	//	ProductId: productid,
-	//}
-	return nil
-}
-
 func BasketAdd(db *gorp.DbMap, userid, storeid, productid, count int64) error {
 	t := time.Now().UnixNano()
 	b := StoreBasket{
@@ -73,11 +64,34 @@ func BasketAdd(db *gorp.DbMap, userid, storeid, productid, count int64) error {
 	return err
 }
 
-func BasketSetCount()
+func BasketRemove(db *gorp.DbMap, userid, storeid, productid int64) error {
+	_, err := db.Exec("delete from StoreBasket where UserId = ? and "+
+		"StoreId = ? and ProductId=?", userid, storeid, productid)
+	return err
+}
+
+func BasketClean(db *gorp.DbMap, userid, storeid int64) error {
+	_, err := db.Exec("delete from StoreBasket where UserId = ? and "+
+		"StoreId = ?", userid, storeid)
+	return err
+}
 
 func BasketGet(db *gorp.DbMap, userid, storeid int64) ([]StoreBasket, error) {
 	var b = []StoreBasket{}
 	_, err := db.Select(&b, "select * from StoreBasket where "+
 		"UserId = ? and StoreId = ?", userid, storeid)
 	return b, err
+}
+
+func GetProduct(db *gorp.DbMap, productid int64) (StoreProduct, error) {
+	var sp = StoreProduct{}
+	obj, err := db.Get(StoreProduct{}, productid)
+	if err != nil {
+		return sp, err
+	}
+	if obj == nil {
+		return sp, errors.New("Product not found")
+	}
+	sp = *obj.(*StoreProduct)
+	return sp, nil
 }

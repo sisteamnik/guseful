@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func (u User) Get(db *gorp.DbMap, id int64) (User, error) {
+func Get(db *gorp.DbMap, id int64) (User, error) {
 	var user User
 	obj, err := db.Get(User{}, id)
 	if err != nil {
