@@ -16,12 +16,14 @@ type (
 		Email   string
 		Address string
 
-		Registered bool `json:"-"`
-
+		Registered     bool   `json:"-"`
 		HashedPassword []byte `json:"-"`
 
-		Created int64
-		Updated int64
+		Permission int64
+		Created    int64
+		Updated    int64
+		Deleted    int64
+		Version    int64
 	}
 
 	UserConfirmation struct {
