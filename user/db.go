@@ -93,11 +93,14 @@ func generateConfirmation(db *gorp.DbMap, userid int64) (UserConfirmation,
 
 func (u *User) SignIn(db *gorp.DbMap, password, login string) (*User, error) {
 	var user = User{}
-	db.SelectOne(&user, "select * from User where Phone = $1 or Email = $1"+
-		" or DotcomUser = $1", login)
-	err := bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(password))
+	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
+		" or DotcomUser = ?", login, login, login)
 	if err != nil {
-		return nil, errors.New("Login failed")
+		return nil, err
+	}
+	err = bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(password))
+	if err != nil {
+		return nil, errors.New("Password is bad")
 	}
 	if user.Id == 0 {
 		return nil, errors.New("User not found")
