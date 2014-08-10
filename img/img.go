@@ -1,8 +1,13 @@
 package img
 
+import (
+	"github.com/coopernurse/gorp"
+)
+
 type Img struct {
-	Id   int64
-	Name int64
+	Id          int64
+	Name        string
+	Description string
 
 	Named bool
 
@@ -13,9 +18,12 @@ type Img struct {
 }
 
 type Api struct {
-	path   string
-	neting uint8
-	dbname string
+	path      string
+	neting    uint8
+	dbname    string
+	defautloc string
+
+	Db *gorp.DbMap
 }
 
 const (

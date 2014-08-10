@@ -11,6 +11,7 @@ type (
 		Views       int64
 		OwnerId     int64
 		Published   bool
+		Source      string
 
 		Deleted int64
 		Created int64
