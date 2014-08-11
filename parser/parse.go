@@ -2,12 +2,12 @@ package parser
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/sisteamnik/guseful/website"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -27,64 +27,96 @@ func (p *Prsr) ParseAll(pagetype string) (res map[string]map[string][]string) {
 		" = ?",
 		time.Now().UnixNano()-p.Opts.Delay, pagetype)
 
-	fmt.Println(pr)
-
 	for _, v := range pr {
 		links := getLinks(getString(v.Index), v.Index)
-		fmt.Println(links)
 		for _, val := range links {
-			fmt.Println("Start visit ", val)
 			if website.IsVisitedPage(Db, val) {
-				fmt.Println(val, " - visited")
 				continue
 			}
 			content := getString(val)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(2000 * time.Millisecond)
 			code := 404
 			if content != "" {
 				code = 200
 			}
 			err := website.VisitPage(Db, val, []byte(content), code)
 			if err != nil {
-				fmt.Println("err", err)
 				continue
 			}
 
 			var rules = map[string]string{}
 			err = json.Unmarshal([]byte(v.Rules), &rules)
 			if err != nil {
-				fmt.Println("err", err)
 				continue
 			}
 			doc, err := goquery.NewDocumentFromReader(strings.
 				NewReader(content))
 			if err != nil {
-				fmt.Println("err", err)
 				continue
 			}
+			doc.Find("script,style").Each(func(i int, s *goquery.Selection) {
+				removeNode(s)
+			})
 			rres := map[string][]string{}
 			for key, value := range rules {
 				s := doc.Find(value)
-				rres[key] = []string{s.Text()}
+				if len(s.Nodes) > 1 {
+					continue
+				}
+				con := strings.TrimSpace(s.Text())
+				result := con
+
+				ar := strings.Split(result, "\n")
+
+				r, _ := regexp.Compile("[\n]{2,}")
+
+				for i, v := range ar {
+					stemp := strings.TrimSpace(v)
+					if len(stemp) == 0 {
+						ar[i] = ""
+						continue
+					}
+				}
+
+				if key == "content" {
+					if len(result) < 500 {
+						continue
+					}
+				}
+
+				result = strings.Join(ar, "\n")
+				result = r.ReplaceAllString(result, "\n\n")
+				rres[key] = []string{result}
+
+				rres["source"] = []string{val}
+				res[val] = rres
+
+				if len(res) > 10 {
+					return
+				}
 			}
-			rres["source"] = []string{val}
-			fmt.Println(rres)
-			res[val] = rres
+
 		}
 	}
-	fmt.Println("All visited")
 	return
+}
+
+func removeNode(selection *goquery.Selection) {
+	if selection != nil {
+		node := selection.Get(0)
+		if node != nil && node.Parent != nil {
+			node.Parent.RemoveChild(node)
+		}
+	}
 }
 
 func getString(u string) string {
 	response, err := http.Get(u)
 	if err != nil {
-		fmt.Println(err)
 		return ""
 	} else {
 		contents, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			fmt.Println(err)
 			return ""
 		}
 		response.Body.Close()
@@ -125,6 +157,5 @@ func getLinks(p string, contextUrl string) []string {
 		}
 		res = append(res, val)
 	})
-	fmt.Println(res)
 	return res
 }

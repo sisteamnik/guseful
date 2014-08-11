@@ -8,7 +8,7 @@ import (
 )
 
 func CreateNew(db *gorp.DbMap, title, description, body string, imgid int64,
-	tags []int64, userid int64, published bool) (New, error) {
+	tags []int64, userid int64, published bool, source string) (New, error) {
 	t := time.Now().UnixNano()
 	n := New{
 		Title:       title,
@@ -21,6 +21,7 @@ func CreateNew(db *gorp.DbMap, title, description, body string, imgid int64,
 		OwnerId:     userid,
 		Published:   published,
 		Tags:        []Tag{},
+		Source:      source,
 	}
 	err := db.Insert(&n)
 	if err != nil {

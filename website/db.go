@@ -2,6 +2,7 @@ package website
 
 import (
 	"errors"
+	"fmt"
 	"github.com/PuerkitoBio/purell"
 	"github.com/coopernurse/gorp"
 	"github.com/sisteamnik/guseful/gz"
@@ -12,8 +13,6 @@ import (
 func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
 	res := SitePage{}
 	var err error
-
-	//fmt.Printf("New pages %d, to up %d\n", len(ToIns), len(ToUp))
 
 	fullurl = n(fullurl)
 	u, _ := url.Parse(fullurl)
@@ -31,7 +30,16 @@ func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
 		res.Body = gz.Gz(string(body))
 		res.Visited = time.Now().UnixNano()
 
-		Db.Insert(&res)
+		site, err := GetSite(Db, fullurl)
+		if err != nil {
+			return err
+		}
+		res.SiteId = site.Id
+
+		err = Db.Insert(&res)
+		if err != nil {
+			return err
+		}
 
 		return nil
 
@@ -46,9 +54,9 @@ func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
 	res.Body = gz.Gz(string(body))
 	res.Visited = time.Now().UnixNano()
 
-	Db.Update(&res)
+	_, err = Db.Update(&res)
 
-	return nil
+	return err
 }
 
 func AddSite(Db *gorp.DbMap, fullurl string) (Site, error) {
@@ -132,9 +140,12 @@ func IsVisitedPage(Db *gorp.DbMap, fullurl string) bool {
 	u, _ := url.Parse(fullurl)
 	visited := false
 
-	vis, _ := Db.SelectInt("select Visited from SitePage"+
+	vis, err := Db.SelectInt("select Visited from SitePage"+
 		" where SiteId in (select Id from Site where Domain = ?"+
-		" limit 1) and Url = ?", u.Host, u.RequestURI())
+		") and Url = ?", u.Host, u.RequestURI())
+	if err != nil {
+		return false
+	}
 	if vis > 0 {
 		visited = true
 	}
@@ -148,9 +159,10 @@ func GetPage(Db *gorp.DbMap, fullurl string) (SitePage, error) {
 	u, _ := url.Parse(fullurl)
 
 	err := Db.SelectOne(&w, "select * from SitePage where SiteId"+
-		" in (select Id from Site where Domain = ? limit 1) and Url = ?",
+		" in (select Id from Site where Domain = ?) and Url = ?",
 		u.Host, u.RequestURI())
 	if err != nil || w.Url == "" {
+		fmt.Println(err)
 		return w, errors.New("not exist")
 	}
 	w.Url = fullurl
@@ -165,9 +177,11 @@ func GetSite(Db *gorp.DbMap, fullurl string) (Site, error) {
 	err := Db.SelectOne(&w, "select * from Site where Domain="+
 		" ?", u.Host)
 	if err != nil {
+		fmt.Println(err)
 		return w, err
 	}
 	if w.Id == 0 {
+		fmt.Println("Site not exist")
 		return w, errors.New("not exist")
 	}
 	return w, nil
@@ -185,6 +199,9 @@ func Normalize(fullurl string) string {
 	if u.Scheme == "" {
 		u.Scheme = "http://"
 	}
+	q := u.Query()
+	q.Del("track")
+	u.RawQuery = q.Encode()
 	fullurl = u.String()
 	return fullurl
 }
