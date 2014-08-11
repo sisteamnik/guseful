@@ -24,7 +24,7 @@ type (
 	}
 
 	Opts struct {
-		db    *gorp.DbMap
+		Db    *gorp.DbMap
 		Delay int64
 	}
 )

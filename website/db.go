@@ -1,12 +1,16 @@
 package website
 
 import (
+	"errors"
 	"github.com/PuerkitoBio/purell"
 	"github.com/coopernurse/gorp"
+	"github.com/sisteamnik/guseful/gz"
+	"net/url"
+	"time"
 )
 
 func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
-	res := website.SitePage{}
+	res := SitePage{}
 	var err error
 
 	//fmt.Printf("New pages %d, to up %d\n", len(ToIns), len(ToUp))
@@ -14,14 +18,14 @@ func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
 	fullurl = n(fullurl)
 	u, _ := url.Parse(fullurl)
 
-	if !IsExistSite(fullurl) {
+	if !IsExistSite(Db, fullurl) {
 		_, err = AddSite(Db, fullurl)
 		if err != nil {
 			return err
 		}
 	}
 
-	if !IsExistPage(fullurl) {
+	if !IsExistPage(Db, fullurl) {
 		res.Url = u.RequestURI()
 		res.Error = int64(code)
 		res.Body = gz.Gz(string(body))
@@ -47,12 +51,12 @@ func VisitPage(Db *gorp.DbMap, fullurl string, body []byte, code int) error {
 	return nil
 }
 
-func AddSite(fullurl string) (website.Site, error) {
+func AddSite(Db *gorp.DbMap, fullurl string) (Site, error) {
 	fullurl = n(fullurl)
 	u, _ := url.Parse(fullurl)
 
 	if u.Host == "" || u.Host == ":" {
-		return website.Site{}, errors.New("empty host")
+		return Site{}, errors.New("empty host")
 	}
 
 	s, _ := GetSite(Db, fullurl)
@@ -69,32 +73,28 @@ func AddSite(fullurl string) (website.Site, error) {
 	return s, nil
 }
 
-func AddPage(Db, fullurl string) (website.SitePage, error) {
+func AddPage(Db *gorp.DbMap, fullurl string) (SitePage, error) {
 	fullurl = n(fullurl)
 	u, _ := url.Parse(fullurl)
-	res := website.SitePage{}
-	if IsExistPage(fullurl) {
+	res := SitePage{}
+	if IsExistPage(Db, fullurl) {
 		return res, errors.New("exist")
 	}
 
-	if !IsExistSite(fullurl) {
-		_, err := AddSite(fullurl)
+	if !IsExistSite(Db, fullurl) {
+		_, err := AddSite(Db, fullurl)
 		if err != nil {
 			return res, err
 		}
 	}
 
-	site, err := GetSite(fullurl)
+	site, err := GetSite(Db, fullurl)
 	if err != nil {
 		return res, errors.New("site not exist")
 	}
 
 	res.SiteId = site.Id
 	res.Url = u.RequestURI()
-
-	ToInsLock.Lock()
-	ToIns = append(ToIns, res)
-	ToInsLock.Unlock()
 
 	err = Db.Insert(&res)
 	if err != nil {
@@ -118,7 +118,6 @@ func IsExistPage(Db *gorp.DbMap, fullurl string) bool {
 
 func IsExistSite(Db *gorp.DbMap, fullurl string) bool {
 	fullurl = n(fullurl)
-	u, _ := url.Parse(fullurl)
 	exist := false
 	p, err := GetSite(Db, fullurl)
 	if err == nil && p.Id != 0 {
@@ -143,9 +142,9 @@ func IsVisitedPage(Db *gorp.DbMap, fullurl string) bool {
 	return visited
 }
 
-func GetPage(Db *gorp.DbMap, fullurl string) (website.SitePage, error) {
+func GetPage(Db *gorp.DbMap, fullurl string) (SitePage, error) {
 	fullurl = n(fullurl)
-	w := website.SitePage{}
+	w := SitePage{}
 	u, _ := url.Parse(fullurl)
 
 	err := Db.SelectOne(&w, "select * from SitePage where SiteId"+
@@ -159,9 +158,9 @@ func GetPage(Db *gorp.DbMap, fullurl string) (website.SitePage, error) {
 	return w, nil
 }
 
-func GetSite(Db *gorp.DbMap, fullurl string) (website.Site, error) {
+func GetSite(Db *gorp.DbMap, fullurl string) (Site, error) {
 	fullurl = n(fullurl)
-	w := website.Site{}
+	w := Site{}
 	u, _ := url.Parse(fullurl)
 	err := Db.SelectOne(&w, "select * from Site where Domain="+
 		" ?", u.Host)
