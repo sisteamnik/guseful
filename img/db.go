@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/coopernurse/gorp"
+	"github.com/disintegration/imaging"
 	"github.com/sisteamnik/guseful/md5"
 	"image"
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -25,13 +27,14 @@ func (a *Api) ExistName(name string) (bool, error) {
 }
 
 func NewApi(db *gorp.DbMap, path string, net uint8, dbname,
-	defaultloc string) *Api {
+	defaultloc string, sizes []Size) *Api {
 	a := new(Api)
 	a.dbname = dbname
 	a.Db = db
 	a.path = path
 	a.neting = net
 	a.defautloc = defaultloc
+	a.sizes = sizes
 	return a
 }
 
@@ -74,7 +77,21 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 	}
 
 	os.MkdirAll(path, 0777)
+	go func() {
+		for _, v := range a.sizes {
 
+			if v.Crop == "thumb" {
+				c := imaging.Thumbnail(img, v.Width, v.Height, imaging.Lanczos)
+				imaging.Save(c, path+"/"+name+"_"+strconv.Itoa(v.Width)+"x"+
+					strconv.Itoa(v.Height)+".jpg")
+			} else if v.Crop == "fit" {
+				c := imaging.Fit(img, v.Width, v.Height, imaging.Lanczos)
+				imaging.Save(c, path+"/"+name+"_"+strconv.Itoa(v.Width)+"x"+
+					strconv.Itoa(v.Height)+".jpg")
+			}
+
+		}
+	}()
 	out, err := os.Create(path + "/" + name + ".jpg")
 	if err != nil {
 		return Img{}, err

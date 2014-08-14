@@ -4,27 +4,35 @@ import (
 	"github.com/coopernurse/gorp"
 )
 
-type Img struct {
-	Id          int64
-	Name        string
-	Description string
+type (
+	Img struct {
+		Id          int64
+		Name        string
+		Description string
 
-	Named bool
+		Named bool
 
-	Deleted int64
-	Updated int64
-	Created int64
-	Version int64
-}
+		Deleted int64
+		Updated int64
+		Created int64
+		Version int64
+	}
 
-type Api struct {
-	path      string
-	neting    uint8
-	dbname    string
-	defautloc string
+	Api struct {
+		path      string
+		neting    uint8
+		dbname    string
+		defautloc string
+		sizes     []Size
 
-	Db *gorp.DbMap
-}
+		Db *gorp.DbMap
+	}
+	Size struct {
+		Width  int
+		Height int
+		Crop   string
+	}
+)
 
 const (
 	DefaultNesting = 5
