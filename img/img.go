@@ -33,7 +33,3 @@ type (
 		Crop   string
 	}
 )
-
-const (
-	DefaultNesting = 5
-)
