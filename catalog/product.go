@@ -6,6 +6,7 @@ import (
 
 type Product struct {
 	Id           int64
+	Barcode      string
 	Price        float64
 	VendorId     int64
 	CollectionId int64
