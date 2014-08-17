@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"fmt"
 )
 
 type Db interface {
@@ -236,6 +237,16 @@ func GetAllCategories(db Db) ([]ProductCategory, error) {
 	p := []ProductCategory{}
 	_, err := db.Select(&p, "select * from ProductCategory")
 	return p, err
+}
+
+func Barcode(db Db, barcode string) (Product, bool) {
+	p := []Product{}
+	_, err := db.Select(&p, "select * from Product where Barcode = ?", barcode)
+	if err != nil || len(p) == 0 {
+		fmt.Println(err)
+		return Product{}, false
+	}
+	return p[0], true
 }
 
 func CreateProduct(db Db, p Product) (Product, error) {
