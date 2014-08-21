@@ -89,7 +89,10 @@ func (p *Prsr) ParseAll(pagetype string) (res map[string]map[string][]string) {
 				rres[key] = []string{result}
 
 				rres["source"] = []string{val}
-				res[val] = rres
+				if len(rres["title"]) == 1 && rres["title"][0] != "" &&
+					len(rres["content"]) == 1 && len(rres["content"][0]) > 300 {
+					res[val] = rres
+				}
 
 				if len(res) > 10 {
 					return
@@ -99,6 +102,19 @@ func (p *Prsr) ParseAll(pagetype string) (res map[string]map[string][]string) {
 		}
 	}
 	return
+}
+
+func (p *Prsr) GetAll(pagetype string) ([]Parser, error) {
+	pr := []Parser{}
+	_, err := p.Opts.Db.Select(&pr, "select * from Parser where LastVisit < ? and Type"+
+		" = ?",
+		time.Now().UnixNano()-p.Opts.Delay, pagetype)
+	return pr, err
+}
+
+func (p *Prsr) CreateParser(prs *Parser) error {
+	err := p.Opts.Db.Insert(prs)
+	return err
 }
 
 func removeNode(selection *goquery.Selection) {

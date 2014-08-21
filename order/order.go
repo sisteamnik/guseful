@@ -2,12 +2,13 @@ package order
 
 type (
 	Order struct {
-		Id      int64
-		UserId  int64
-		StoreId int64
-		Phone   string
-		Address string
-		Price   float64
+		Id         int64
+		CustomerId int64
+		StoreId    int64
+		SellerId   int64
+		Phone      string
+		Address    string
+		Price      float64
 
 		DeliveryId int64
 
@@ -15,6 +16,8 @@ type (
 
 		Created int64
 		Updated int64
+		Deleted int64
+		Version int64
 
 		Products []OrderProduct `db:"-"`
 	}
@@ -27,6 +30,8 @@ type (
 
 		Created int64
 		Updated int64
+		Deleted int64
+		Version int64
 	}
 
 	OrderStatus struct {
@@ -35,6 +40,8 @@ type (
 
 		Created int64
 		Updated int64
+		Deleted int64
+		Version int64
 	}
 
 	OrderProduct struct {
@@ -45,5 +52,7 @@ type (
 
 		Created int64
 		Updated int64
+		Deleted int64
+		Version int64
 	}
 )

@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-func CreateOrder(db *gorp.DbMap, userid, storeid, deliveryid int64, phone,
+func CreateOrder(db *gorp.DbMap, customer, storeid, deliveryid int64, phone,
 	address string, products []OrderProduct, price float64) (Order, error) {
 	t := time.Now().UnixNano()
 	o := Order{
-		UserId:     userid,
+		CustomerId: customer,
 		StoreId:    storeid,
 		DeliveryId: deliveryid,
 		Phone:      phone,
