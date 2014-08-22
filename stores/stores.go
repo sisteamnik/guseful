@@ -8,6 +8,8 @@ type (
 
 		Created int64
 		Updated int64
+		Deleted int64
+		Version int64
 	}
 
 	StoreProduct struct {
