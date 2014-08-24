@@ -13,6 +13,7 @@ type (
 		Description  string
 		Type         string
 		Parent       int64
+		LongText     []byte
 
 		Lon float64
 		Lat float64
