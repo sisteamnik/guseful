@@ -3,6 +3,7 @@ package pages
 import (
 	"errors"
 	"github.com/coopernurse/gorp"
+	"time"
 )
 
 func CreatePage(db *gorp.DbMap, p *Page) (*Page, error) {
@@ -30,6 +31,7 @@ func GetPage(db *gorp.DbMap, slug string) (*Page, error) {
 
 func UpdatePage(db *gorp.DbMap, p *Page) error {
 	_, err := db.Update(p)
+	p.Updated = time.Now().UnixNano()
 	return err
 }
 
