@@ -1,0 +1,1 @@
+Seo friendly image processor
