@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 type Db interface {
@@ -287,6 +288,7 @@ func GetProducts(db Db, offset, limit int64) ([]Product, error) {
 }
 
 func UpdateProduct(db Db, p Product) error {
+	p.Modified = time.Now().UnixNano()
 	_, err := db.Update(&p)
 	if err != nil {
 		return err
