@@ -1,5 +1,9 @@
 package user
 
+import (
+	"fmt"
+)
+
 type (
 	User struct {
 		Id   int64
@@ -39,3 +43,7 @@ type (
 		Send(to string, message string) error
 	}
 )
+
+func (u User) String() string {
+	return fmt.Sprintf("%s %s", u.FirstName, u.LastName)
+}

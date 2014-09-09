@@ -74,6 +74,11 @@ type (
 		Parent int64
 	}
 
+	GroupMembers struct {
+		GroupId int64
+		UserId  int64
+	}
+
 	TrainingType struct {
 		itemWithTitle
 	}

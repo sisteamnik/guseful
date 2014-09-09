@@ -1,0 +1,63 @@
+<!DOCTYPE html><title>Document</title>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<style type="text/css">
+.rotated-text {
+     display: inline-block;
+     overflow: hidden;
+
+     width: 1.5em;
+     line-height: 1.5;
+ }
+ .rotated-text__inner {
+     display: inline-block;
+     white-space: nowrap;
+
+     transform: translate(0,100%) rotate(-90deg);
+     -moz-transform: rotate(-90deg);  /* FF3.5+ */
+       -o-transform: rotate(-90deg);  /* Opera 10.5 */
+  -webkit-transform: rotate(-90deg);  /* Saf3.1+, Chrome */
+             filter:  progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083);  /* IE6,IE7 */
+         -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083)"; /* IE8 */
+
+
+ }
+  .rotated-text__inner:after {
+     content: "";
+     float: left;
+     margin-top: 100%;
+ }
+</style>
+
+<div class="container">
+	<div class="row">
+		<div class="col-md-2">
+			<h2>Понедельник</h2>
+			<table>
+				<tr>
+				  <td>Физра</td>
+				</tr>
+			</table>
+		</div>
+		<div class="col-md-2"></div>
+		<div class="col-md-2"></div>
+		<div class="col-md-2"></div>
+		<div class="col-md-2"></div>
+	</div>
+</div>
+<script>
+var contents = $('td').html();
+$('td').focus(function(){
+	contents = $(this).html()
+})
+$('td').blur(function() {
+    if (contents!=$(this).html()){
+  alert($(this).parent().attr("data-src"));
+        contents = $(this).html();
+    }
+});
+</script>

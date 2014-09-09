@@ -1,6 +1,7 @@
 package university
 
 import (
+	"fmt"
 	"github.com/coopernurse/gorp"
 	"sort"
 )
@@ -22,18 +23,27 @@ func (u *University) AddTables() error {
 	u.db.AddTable(Audithory{}).SetKeys(true, "Id")
 	u.db.AddTable(Corps{}).SetKeys(true, "Id")
 	u.db.AddTable(Group{}).SetKeys(true, "Id")
+	u.db.AddTable(GroupMembers{}).SetUniqueTogether("GroupId", "UserId")
 	u.db.AddTable(TrainingType{}).SetKeys(true, "Id")
 	u.db.AddTable(Attendance{}).SetKeys(true, "Id")
 	u.db.AddTable(Billing{}).SetKeys(true, "Id")
-	return u.db.CreateTablesIfNotExists()
+
+	u.db.AddTable(Diary{}).SetKeys(true, "Id")
+	u.db.AddTable(DiaryMarks{}).SetKeys(true, "Id")
+
+	return nil
 }
 
 func (u *University) CreateScheduleItem(s *ScheduleItem) error {
 	return u.db.Insert(s)
 }
 
-func (u *University) GetScheduleForGroup(groupId int64) (Schedule, error) {
+func (u *University) GetScheduleForGroup(groupId int64, periodtype int64) (Schedule, error) {
 	si := []ScheduleItemView{}
+	pt := ""
+	if periodtype != 0 {
+		pt = fmt.Sprintf(" and PeriodType = %v ", periodtype)
+	}
 	_, err := u.db.Select(&si, "select ScheduleItem.Id, PeriodType, Guru, Subject, "+
 		"Audithory, Corps, "+
 		" Start,Duration ,WeekDay, `Group`,TrainingType, Attendance,Billing, "+
@@ -48,19 +58,20 @@ func (u *University) GetScheduleForGroup(groupId int64) (Schedule, error) {
 		" Attendance, Billing, Subject  where PeriodType.Id"+
 		" = ScheduleItem.PeriodType and Audithory.Id = Audithory and Corps.Id"+
 		" = Corps and `Group`.Id = `Group` and TrainingType.Id = TrainingType"+
-		" and Subject.Id = Subject and ScheduleItem.`Group` in (select Id from"+
+		" and Subject.Id = Subject "+pt+" and ScheduleItem.`Group` in (select Id from"+
 		" `Group` where Parent = ? or Id = ?)", groupId, groupId)
 	for i := range si {
 		si[i].WeekDayName = weekDay(si[i].WeekDay)
 	}
 	result := Schedule(si)
+	result.SortByTime()
 	return result, err
 }
 
 func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView {
 	var result = map[int64]map[int64]map[int64][]ScheduleItemView{}
 	var i, j, k int64
-	for i = 1; i <= 7; i++ {
+	for i = 1; i <= 5; i++ {
 		result[i] = map[int64]map[int64][]ScheduleItemView{}
 		startes := s.Startes()
 		for j = 0; j < int64(len(startes)); j++ {
@@ -70,6 +81,11 @@ func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView 
 				for _, v := range s {
 					if v.WeekDay == i && startes[j] == v.Start && v.PeriodType == periodTypes[k] {
 						result[i][startes[j]][periodTypes[k]] = append(result[i][startes[j]][periodTypes[k]], v)
+					}
+				}
+				if len(result[i][startes[j]][periodTypes[k]]) == 0 {
+					result[i][startes[j]][periodTypes[k]] = []ScheduleItemView{
+						ScheduleItemView{},
 					}
 				}
 			}
