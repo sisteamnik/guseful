@@ -5,5 +5,7 @@ import (
 )
 
 func Parse(num int64) time.Time {
-	return time.Unix(num/1000000000, num%1000000000)
+	t := time.Unix(num/1000000000, num%1000000000)
+	t.In(time.Now().Location())
+	return t
 }

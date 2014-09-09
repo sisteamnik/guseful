@@ -19,10 +19,9 @@ type (
 	}
 
 	DiaryMarks struct {
-		Id        int64
-		Date      int64
-		SubjectId int64
-		UserId    int64
+		Id      int64
+		DiaryId int64
+		User    int64
 
 		Val string //4,5 n
 	}

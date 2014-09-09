@@ -3,7 +3,10 @@ package university
 import (
 	"fmt"
 	"github.com/coopernurse/gorp"
+	"github.com/jinzhu/now"
+	"github.com/sisteamnik/guseful/unixtime"
 	"sort"
+	"time"
 )
 
 func NewUniversity(db *gorp.DbMap) *University {
@@ -64,8 +67,38 @@ func (u *University) GetScheduleForGroup(groupId int64, periodtype int64) (Sched
 		si[i].WeekDayName = weekDay(si[i].WeekDay)
 	}
 	result := Schedule(si)
+	result.cleanForDuration()
 	result.SortByTime()
 	return result, err
+}
+
+func (s Schedule) cleanForDuration() {
+	var singles = []ScheduleItemView{}
+	for _, v := range s {
+		if v.Start > 1440 {
+			singles = append(singles, v)
+		}
+	}
+	var res = Schedule{}
+	for i, v := range singles {
+		for k, val := range s {
+			if normTime(val.Start) == normTime(v.Start) {
+				if v.Start > val.Start && v.Group == val.Group &&
+					v.WeekDay == val.WeekDay && v.PeriodType ==
+					val.PeriodType && v.Id != 0 && val.Id != 0 {
+					s[k] = ScheduleItemView{}
+					singles[i] = ScheduleItemView{}
+				}
+			}
+		}
+	}
+	for i := range s {
+		if s[i].Id != 0 {
+			s[i].Start = normTime(s[i].Start)
+			res = append(res, s[i])
+		}
+	}
+	s = res
 }
 
 func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView {
@@ -79,8 +112,10 @@ func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView 
 			periodTypes := s.PeriodTypes()
 			for k = 0; k < int64(len(periodTypes)); k++ {
 				for _, v := range s {
-					if v.WeekDay == i && startes[j] == v.Start && v.PeriodType == periodTypes[k] {
-						result[i][startes[j]][periodTypes[k]] = append(result[i][startes[j]][periodTypes[k]], v)
+					if v.WeekDay == i && startes[j] == normTime(v.Start) &&
+						v.PeriodType == periodTypes[k] {
+						result[i][startes[j]][periodTypes[k]] =
+							append(result[i][startes[j]][periodTypes[k]], v)
 					}
 				}
 				if len(result[i][startes[j]][periodTypes[k]]) == 0 {
@@ -92,6 +127,18 @@ func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView 
 		}
 	}
 	return result
+}
+
+func normTime(a int64) int64 {
+	if a < 1440 {
+		return a
+	}
+	t := unixtime.Parse(a)
+	t = t.In(time.Now().Location())
+	dur := t.Sub(now.New(t).BeginningOfDay())
+	//fmt.Println(t.Format("02.01.2006 15:04"),
+	//	now.New(t).BeginningOfDay().Format("02.01.2006 15:04"))
+	return int64(dur.Minutes())
 }
 
 func (s Schedule) SortByTime() Schedule {
@@ -168,6 +215,7 @@ func weekDay(id int64) string {
 }
 
 func couple(start int64) string {
+	start = normTime(start)
 	var couples = map[int64]string{
 		510: "8:30-10:00",
 		610: "10:10-11:40",
@@ -184,6 +232,7 @@ func couple(start int64) string {
 }
 
 func coupleNumber(start int64) int64 {
+	start = normTime(start)
 	var couples = map[int64]int64{
 		510: 1,
 		610: 2,

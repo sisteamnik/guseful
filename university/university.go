@@ -134,7 +134,9 @@ func (s Schedule) Startes() []int64 {
 		startes[v.Start] = true
 	}
 	for k, _ := range startes {
-		res = append(res, k)
+		if k != 0 {
+			res = append(res, k)
+		}
 	}
 	sort.Sort(Int64(res))
 	return res
@@ -147,7 +149,9 @@ func (s Schedule) PeriodTypes() []int64 {
 		periodTypes[v.PeriodType] = true
 	}
 	for k, _ := range periodTypes {
-		res = append(res, k)
+		if k != 0 {
+			res = append(res, k)
+		}
 	}
 	sort.Sort(Int64(res))
 	return res
