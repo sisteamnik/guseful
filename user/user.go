@@ -13,8 +13,7 @@ type (
 		LastName   string
 		Patronymic string
 
-		NickName   string
-		DotcomUser string
+		NickName string
 
 		Phone   string
 		Email   string

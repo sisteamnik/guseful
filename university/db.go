@@ -34,6 +34,8 @@ func (u *University) AddTables() error {
 	u.db.AddTable(Diary{}).SetKeys(true, "Id")
 	u.db.AddTable(DiaryMarks{}).SetKeys(true, "Id")
 
+	u.db.CreateTablesIfNotExists()
+
 	return nil
 }
 

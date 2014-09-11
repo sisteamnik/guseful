@@ -94,7 +94,7 @@ func generateConfirmation(db *gorp.DbMap, userid int64) (UserConfirmation,
 func (u *User) SignIn(db *gorp.DbMap, password, login string) (*User, error) {
 	var user = User{}
 	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
-		" or DotcomUser = ?", login, login, login)
+		" or NickName = ?", login, login, login)
 	if err != nil {
 		return nil, err
 	}
