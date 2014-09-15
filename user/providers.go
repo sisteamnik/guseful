@@ -1,13 +1,19 @@
 package user
 
+import (
+	"github.com/coopernurse/gorp"
+)
+
 type (
 	AuthProvider struct {
-		Id     int64
-		UserId int64
-
-		SocialNetworkId   int64
-		SocialNetworkUser string
-		Token             string
-		TokenExpires      int64
+		UId  int64
+		Sn   string
+		SnId string
 	}
 )
+
+func IsUserFromSocialNetwork(db *gorp.DbMap, sn string, user string) (AuthProvider, error) {
+	a := AuthProvider{}
+	err := db.SelectOne(&a, "select * from AuthProvider where Sn = ? and SnId = ?", sn, user)
+	return a, err
+}

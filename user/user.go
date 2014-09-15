@@ -12,6 +12,7 @@ type (
 		FirstName  string
 		LastName   string
 		Patronymic string
+		Sex        int64
 
 		NickName string
 

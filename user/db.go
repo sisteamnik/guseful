@@ -16,6 +16,9 @@ func Get(db *gorp.DbMap, id int64) (User, error) {
 	if err != nil {
 		return user, err
 	}
+	if obj == nil {
+		return user, errors.New("User not found")
+	}
 	user = *obj.(*User)
 	return user, nil
 }
@@ -49,7 +52,7 @@ func (u *User) SignUp(db *gorp.DbMap, s SmsSender, firstname, lastname, phone,
 		return err
 	}
 
-	message := fmt.Sprintf("You code %d", conf.Code)
+	message := fmt.Sprintf("You code %d. Session %d.", conf.Code, conf.Id)
 
 	err = s.Send(phone, message)
 	if err != nil {
