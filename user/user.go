@@ -15,6 +15,7 @@ type (
 		Sex        int64
 
 		NickName string
+		Photo    int64
 
 		Phone   string
 		Email   string

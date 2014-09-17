@@ -90,6 +90,15 @@ type (
 	Billing struct {
 		itemWithTitle
 	}
+
+	Faculty struct {
+		itemWithTitle
+	}
+
+	Departament struct {
+		itemWithTitle
+		Parent int64
+	}
 )
 
 type ByTime []ScheduleItemView

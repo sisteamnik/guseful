@@ -1,10 +1,13 @@
 package university
 
 import (
+	"errors"
 	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/jinzhu/now"
+	"github.com/sisteamnik/guseful/rate"
 	"github.com/sisteamnik/guseful/unixtime"
+	"github.com/sisteamnik/guseful/user"
 	"sort"
 	"time"
 )
@@ -30,9 +33,21 @@ func (u *University) AddTables() error {
 	u.db.AddTable(TrainingType{}).SetKeys(true, "Id")
 	u.db.AddTable(Attendance{}).SetKeys(true, "Id")
 	u.db.AddTable(Billing{}).SetKeys(true, "Id")
+	u.db.AddTable(Faculty{}).SetKeys(true, "Id")
+	u.db.AddTable(Departament{}).SetKeys(true, "Id")
 
 	u.db.AddTable(Diary{}).SetKeys(true, "Id")
 	u.db.AddTable(DiaryMarks{}).SetKeys(true, "Id")
+
+	t := u.db.AddTable(Guru{}).SetKeys(true, "Id")
+	t.ColMap("UserId").SetUnique(true)
+	t = u.db.AddTable(GuruFeatures{}).SetKeys(true, "Id")
+	t.SetUniqueTogether("Feature", "GuruId")
+
+	t = u.db.AddTable(rate.Rate{}).SetKeys(true, "Id")
+	t.SetUniqueTogether("ItemType", "ItemId")
+	t = u.db.AddTable(rate.Vote{})
+	//t.SetUniqueTogether("RateId", "UserId")
 
 	u.db.CreateTablesIfNotExists()
 
@@ -243,4 +258,126 @@ func coupleNumber(start int64) int64 {
 		920: 5,
 	}
 	return couples[start]
+}
+
+//gurus
+//todo add all fields
+
+func (u *University) CreateGuru(userid int64) (Guru, error) {
+	g := Guru{
+		UserId: userid,
+	}
+	tx, err := u.db.Begin()
+	if err != nil {
+		return g, err
+	}
+	err = tx.Insert(&g)
+	if err != nil {
+		return g, err
+	}
+	err = createFeatures(tx, g.Id)
+	err = createRate(tx, g.Id)
+	tx.Commit()
+	return g, err
+}
+
+func createFeatures(db *gorp.Transaction, guruid int64) error {
+	humor := GuruFeatures{
+		Feature: "humor",
+		GuruId:  guruid,
+	}
+	goodwill := GuruFeatures{
+		Feature: "goodwill",
+		GuruId:  guruid,
+	}
+	understandability := GuruFeatures{
+		Feature: "understandability",
+		GuruId:  guruid,
+	}
+	err := db.Insert(&humor, &goodwill, &understandability)
+	return err
+}
+
+func createRate(db *gorp.Transaction, guruid int64) error {
+	humor := rate.Rate{
+		ItemType: 0,
+		ItemId:   guruid,
+	}
+	goodwill := rate.Rate{
+		ItemType: 1,
+		ItemId:   guruid,
+	}
+	understandability := rate.Rate{
+		ItemType: 2,
+		ItemId:   guruid,
+	}
+	err := db.Insert(&humor, &goodwill, &understandability)
+	return err
+}
+
+func getVotes(db *gorp.Transaction, gid, fid int64) (rate.Rate, error) {
+	r := []rate.Rate{}
+	_, err := db.Select(&r, "select * from Rate where ItemId = ? and ItemType = ?", gid, fid)
+	if err != nil {
+		return rate.Rate{}, err
+	}
+	if len(r) == 1 {
+		return r[0], nil
+	}
+	return rate.Rate{}, errors.New(fmt.Sprint("Unexpected error", len(r)))
+}
+
+func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
+	f := []GuruFeatures{}
+	tx, err := u.db.Begin()
+	if err != nil {
+		return f, err
+	}
+	_, err = tx.Select(&f, "select * from GuruFeatures where GuruId = ?", gid)
+	if err != nil {
+		tx.Rollback()
+		return f, err
+	}
+	for i := range f {
+		var fid int64
+		switch f[i].Feature {
+		case "humor":
+			fid = 0
+			break
+		case "goodwill":
+			fid = 1
+			break
+		case "understandability":
+			fid = 2
+			break
+		}
+		f[i].Votes, err = getVotes(tx, gid, fid)
+		if err != nil {
+			tx.Rollback()
+			return f, err
+		}
+	}
+	tx.Commit()
+	return f, nil
+}
+
+func (u *University) GetAllGurus() (g []Guru) {
+	_, err := u.db.Select(&g, "select * from Guru")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for i := range g {
+		g[i].Features, err = u.GetGuruFeatures(g[i].Id)
+		if err != nil {
+			fmt.Println(err)
+			return []Guru{}
+		}
+		g[i].User, err = user.Get(u.db, g[i].UserId)
+		if err != nil {
+			fmt.Println(err)
+			return []Guru{}
+		}
+	}
+	return
 }
