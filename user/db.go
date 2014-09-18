@@ -23,6 +23,20 @@ func Get(db *gorp.DbMap, id int64) (User, error) {
 	return user, nil
 }
 
+func Update(db *gorp.DbMap, u User) error {
+	t := time.Now().UnixNano()
+	ou, err := Get(db, u.Id)
+	if err != nil {
+		return err
+	}
+	ou.FirstName = u.FirstName
+	ou.LastName = u.LastName
+	ou.Patronymic = u.Patronymic
+	ou.Updated = t
+	_, err = db.Update(&ou)
+	return err
+}
+
 func GetByUuid(db *gorp.DbMap, uuid string) (*User, error) {
 	u, err := db.Select(User{}, "select * from User where Uuid = ?", uuid)
 	if err != nil {

@@ -322,9 +322,19 @@ func getVotes(db *gorp.Transaction, gid, fid int64) (rate.Rate, error) {
 		return rate.Rate{}, err
 	}
 	if len(r) == 1 {
+		r[0].Votes, err = getVotesforRate(db, r[0].Id)
+		if err != nil {
+			return rate.Rate{}, err
+		}
 		return r[0], nil
 	}
 	return rate.Rate{}, errors.New(fmt.Sprint("Unexpected error", len(r)))
+}
+
+func getVotesforRate(db *gorp.Transaction, rateid int64) ([]rate.Vote, error) {
+	r := []rate.Vote{}
+	_, err := db.Select(&r, "select * from Vote where RateId = ?", rateid)
+	return r, err
 }
 
 func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
@@ -362,7 +372,7 @@ func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
 }
 
 func (u *University) GetAllGurus() (g []Guru) {
-	_, err := u.db.Select(&g, "select * from Guru")
+	_, err := u.db.Select(&g, "select * from Guru limit 60")
 	if err != nil {
 		fmt.Println(err)
 		return
