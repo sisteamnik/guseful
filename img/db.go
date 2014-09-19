@@ -52,7 +52,7 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 
 	tm := time.Now()
 
-	if name == "" {
+	if name == "" || len(name) <= int(a.neting) {
 		name = randName()
 		named = false
 	}

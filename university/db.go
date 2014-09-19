@@ -372,7 +372,7 @@ func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
 }
 
 func (u *University) GetAllGurus() (g []Guru) {
-	_, err := u.db.Select(&g, "select * from Guru limit 60")
+	_, err := u.db.Select(&g, "select * from Guru order by Rate desc")
 	if err != nil {
 		fmt.Println(err)
 		return
