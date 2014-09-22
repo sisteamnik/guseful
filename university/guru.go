@@ -39,3 +39,9 @@ type (
 		Version int64
 	}
 )
+
+type ByRate []Guru
+
+func (a ByRate) Len() int           { return len(a) }
+func (a ByRate) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByRate) Less(i, j int) bool { return a[i].Rate < a[j].Rate }

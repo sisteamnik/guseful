@@ -44,33 +44,33 @@ type (
 		BillingName      string
 	}
 
-	itemWithTitle struct {
+	ItemWithTitle struct {
 		Id    int64
 		Title string
 	}
 
 	PeriodType struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Subject struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Audithory struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Corps struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	WeekDay struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Group struct {
-		itemWithTitle
+		ItemWithTitle
 		Parent int64
 	}
 
@@ -80,23 +80,23 @@ type (
 	}
 
 	TrainingType struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Attendance struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Billing struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Faculty struct {
-		itemWithTitle
+		ItemWithTitle
 	}
 
 	Departament struct {
-		itemWithTitle
+		ItemWithTitle
 		Parent int64
 	}
 )

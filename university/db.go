@@ -371,6 +371,23 @@ func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
 	return f, nil
 }
 
+func (u *University) SearchGuru(q string) (ids []int64) {
+	query := "%" + q + "%"
+	_, err := u.db.Select(&ids, "select Id from Guru where UserId in (select Id from"+
+		" User where (FirstName like ? \n  or LastName like ? or Patronymic like"+
+		" ?) and Id in (select UserId from Guru)) order by Rate desc limit 12", query, query, query)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (u *University) TopGurus(offset, limit int64) (ids []int64) {
+	u.db.Select(&ids, "select Id from Guru order by Rate desc limit ?,?", offset,
+		limit)
+	return
+}
+
 func (u *University) GetAllGurus() (g []Guru) {
 	_, err := u.db.Select(&g, "select * from Guru order by Rate desc")
 	if err != nil {
@@ -390,4 +407,30 @@ func (u *University) GetAllGurus() (g []Guru) {
 		}
 	}
 	return
+}
+
+func (u *University) GetGuru(id int64) (g Guru) {
+	err := u.db.SelectOne(&g, "select * from Guru where Id = ?", id)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	g.Features, err = u.GetGuruFeatures(g.Id)
+	if err != nil {
+		fmt.Println(err)
+		return Guru{}
+	}
+	g.User, err = user.Get(u.db, g.UserId)
+	if err != nil {
+		fmt.Println(err)
+		return Guru{}
+	}
+	return
+}
+
+func (u *University) GetFaculty(id int64) ([]int64, error) {
+	var ids []int64
+	_, err := u.db.Select(&ids, "select Id from Guru where Faculty = ?", id)
+	fmt.Print(ids)
+	return ids, err
 }
