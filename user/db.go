@@ -98,20 +98,77 @@ func (u *User) SignUp(db *gorp.DbMap, s SmsSender, firstname, lastname, phone,
 	return nil
 }
 
+func (u *User) CheckLogin(db *gorp.DbMap, login string) (User, error) {
+	var user = User{}
+	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
+		" or NickName = ? limit 1", login, login, login)
+	if err != nil {
+		return user, err
+	}
+	if user.Id == 0 {
+		return user, errors.New("User not found")
+	}
+	return user, nil
+}
+
+func CheckPhone(db *gorp.DbMap, phone string) (User, error) {
+	var user = User{}
+	err := db.SelectOne(&user, "select * from User where Phone = ? limit 1",
+		phone)
+	if user.Id != 0 {
+		return user, errors.New("User found")
+	}
+	if err != nil {
+		return user, err
+	}
+	return user, nil
+}
+
 func (u *User) Confirm(db *gorp.DbMap, code int64, userid int64) error {
 	var uc = UserConfirmation{}
-	db.SelectOne(&uc, "select * from UserConfirmation where UserId = ? and Code = ?"+
+	err := db.SelectOne(&uc, "select * from UserConfirmation where UserId = ? and Code = ?"+
 		" and Tried = 0 and Created > ?", userid, code, time.Now().Truncate(5*
 		time.Minute).UnixNano())
+	if err != nil {
+		return err
+	}
 	if uc.Id == 0 {
 		return errors.New("Confirmation not found")
 	}
 	u.Registered = true
-	_, err := db.Update(u)
+	_, err = db.Update(u)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (u *User) Restore(db *gorp.DbMap, s SmsSender,
+	login string) (UserConfirmation, error) {
+	user, err := u.CheckLogin(db, login)
+	if err != nil {
+		return UserConfirmation{}, err
+	}
+	conf, err := generateConfirmation(db, user.Id)
+	if err != nil {
+		return conf, err
+	}
+
+	message := fmt.Sprintf("You code %d. Session %d.", conf.Code, conf.Id)
+
+	err = s.Send(user.Phone, message)
+	if err != nil {
+		return conf, err
+	}
+	return conf, nil
+}
+
+func (u *User) NewPassword(db *gorp.DbMap, password string) error {
+	u.HashedPassword, _ = bcrypt.GenerateFromPassword(
+		[]byte(password), bcrypt.DefaultCost)
+	u.Updated = time.Now().UnixNano()
+	_, err := db.Update(u)
+	return err
 }
 
 func generateConfirmation(db *gorp.DbMap, userid int64) (UserConfirmation,
@@ -131,9 +188,7 @@ func generateConfirmation(db *gorp.DbMap, userid int64) (UserConfirmation,
 }
 
 func (u *User) SignIn(db *gorp.DbMap, password, login string) (*User, error) {
-	var user = User{}
-	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
-		" or NickName = ?", login, login, login)
+	user, err := u.CheckLogin(db, login)
 	if err != nil {
 		return nil, err
 	}
