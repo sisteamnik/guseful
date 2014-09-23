@@ -23,6 +23,28 @@ func Get(db *gorp.DbMap, id int64) (User, error) {
 	return user, nil
 }
 
+func GetUsers(db *gorp.DbMap, ids []int64) ([]User, error) {
+	var users []User
+	for _, id := range ids {
+		obj, err := db.Get(User{}, id)
+		if err != nil {
+			return users, err
+		}
+		if obj == nil {
+			return users, errors.New("User not found")
+		}
+		user := *obj.(*User)
+		users = append(users, user)
+	}
+	return users, nil
+}
+
+func GetAllUsers(db *gorp.DbMap, offset, limit int64) ([]User, error) {
+	var users []User
+	_, err := db.Select(&users, "select * from User limit ?,?", offset, limit)
+	return users, err
+}
+
 func Update(db *gorp.DbMap, u User) error {
 	t := time.Now().UnixNano()
 	ou, err := Get(db, u.Id)
