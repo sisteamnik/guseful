@@ -11,6 +11,7 @@ import (
 	"image/jpeg"
 	_ "image/png"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 )
@@ -79,15 +80,23 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 	os.MkdirAll(path, 0777)
 	go func() {
 		for _, v := range a.sizes {
-
+			save_path := path + "/" + name + "_" + strconv.Itoa(v.Width) + "x" +
+				strconv.Itoa(v.Height)
+			save_path_with_ex := save_path + ".jpg"
 			if v.Crop == "thumb" {
 				c := imaging.Thumbnail(img, v.Width, v.Height, imaging.Lanczos)
-				imaging.Save(c, path+"/"+name+"_"+strconv.Itoa(v.Width)+"x"+
-					strconv.Itoa(v.Height)+".jpg")
+				imaging.Save(c, save_path_with_ex)
 			} else if v.Crop == "fit" {
 				c := imaging.Fit(img, v.Width, v.Height, imaging.Lanczos)
-				imaging.Save(c, path+"/"+name+"_"+strconv.Itoa(v.Width)+"x"+
-					strconv.Itoa(v.Height)+".jpg")
+				imaging.Save(c, save_path_with_ex)
+			}
+			if a.WebpAddr != "" {
+				cmd := exec.Command(a.WebpAddr, save_path_with_ex, "-o",
+					save_path+".webp")
+				err := cmd.Run()
+				if err != nil {
+					panic(err)
+				}
 			}
 
 		}
@@ -98,6 +107,15 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 	}
 	defer out.Close()
 	jpeg.Encode(out, img, nil)
+
+	if a.WebpAddr != "" {
+		cmd := exec.Command(a.WebpAddr, path+"/"+name+".jpg", "-o",
+			path+"/"+name+".webp")
+		err := cmd.Run()
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	im := Img{
 		Name:        name,

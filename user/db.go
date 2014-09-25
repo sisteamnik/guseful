@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/coopernurse/gorp"
+	"github.com/sisteamnik/guseful/phone"
 	"math/big"
 	"time"
 )
@@ -100,8 +101,9 @@ func (u *User) SignUp(db *gorp.DbMap, s SmsSender, firstname, lastname, phone,
 
 func (u *User) CheckLogin(db *gorp.DbMap, login string) (User, error) {
 	var user = User{}
+	ph, _ := phone.Normalize(login)
 	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
-		" or NickName = ? limit 1", login, login, login)
+		" or NickName = ? limit 1", ph, login, login)
 	if err != nil {
 		return user, err
 	}
@@ -113,13 +115,10 @@ func (u *User) CheckLogin(db *gorp.DbMap, login string) (User, error) {
 
 func CheckPhone(db *gorp.DbMap, phone string) (User, error) {
 	var user = User{}
-	err := db.SelectOne(&user, "select * from User where Phone = ? limit 1",
+	db.SelectOne(&user, "select * from User where Phone = ? limit 1",
 		phone)
 	if user.Id != 0 {
 		return user, errors.New("User found")
-	}
-	if err != nil {
-		return user, err
 	}
 	return user, nil
 }

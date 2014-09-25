@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/jinzhu/now"
+	"github.com/sisteamnik/guseful/comments"
 	"github.com/sisteamnik/guseful/rate"
 	"github.com/sisteamnik/guseful/unixtime"
 	"github.com/sisteamnik/guseful/user"
@@ -263,6 +264,14 @@ func coupleNumber(start int64) int64 {
 //gurus
 //todo add all fields
 
+func (u *University) IsGuru(uid int64) (int64, bool) {
+	id, _ := u.db.SelectInt("select Id from Guru where UserId = ? and Deleted = 0")
+	if id == 0 {
+		return id, false
+	}
+	return id, true
+}
+
 func (u *University) CreateGuru(userid int64) (Guru, error) {
 	g := Guru{
 		UserId: userid,
@@ -313,6 +322,11 @@ func createRate(db *gorp.Transaction, guruid int64) error {
 	}
 	err := db.Insert(&humor, &goodwill, &understandability)
 	return err
+}
+
+func getComments(db *gorp.DbMap, itemid int64) ([]comments.Comment, error) {
+	c, err := comments.GetComments(db, itemid, "guru")
+	return c, err
 }
 
 func getVotes(db *gorp.Transaction, gid, fid int64) (rate.Rate, error) {
@@ -371,11 +385,15 @@ func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
 	return f, nil
 }
 
+func (u *University) MustUpdateGuru(id int64) {
+	u.db.Exec("update Guru set Updated = ?", time.Now().UTC().UnixNano())
+}
+
 func (u *University) SearchGuru(q string) (ids []int64) {
 	query := "%" + q + "%"
 	_, err := u.db.Select(&ids, "select Id from Guru where UserId in (select Id from"+
 		" User where (FirstName like ? \n  or LastName like ? or Patronymic like"+
-		" ?) and Id in (select UserId from Guru)) order by Rate desc limit 12", query, query, query)
+		" ?) and Id in (select UserId from Guru)) and Deleted = 0 order by Rate desc limit 12", query, query, query)
 	if err != nil {
 		panic(err)
 	}
@@ -383,13 +401,19 @@ func (u *University) SearchGuru(q string) (ids []int64) {
 }
 
 func (u *University) TopGurus(offset, limit int64) (ids []int64) {
-	u.db.Select(&ids, "select Id from Guru order by Rate desc limit ?,?", offset,
+	u.db.Select(&ids, "select Id from Guru where Deleted = 0 order by Rate desc limit ?,?", offset,
+		limit)
+	return
+}
+
+func (u *University) BotGurus(offset, limit int64) (ids []int64) {
+	u.db.Select(&ids, "select Id from Guru where Deleted = 0 order by Rate asc limit ?,?", offset,
 		limit)
 	return
 }
 
 func (u *University) GetAllGurus() (g []Guru) {
-	_, err := u.db.Select(&g, "select * from Guru order by Rate desc")
+	_, err := u.db.Select(&g, "select * from Guru where Deleted = 0 order by Rate desc")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -410,7 +434,8 @@ func (u *University) GetAllGurus() (g []Guru) {
 }
 
 func (u *University) GetGuru(id int64) (g Guru) {
-	err := u.db.SelectOne(&g, "select * from Guru where Id = ?", id)
+	err := u.db.SelectOne(&g, "select * from Guru where Id = ? and Deleted = 0",
+		id)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -425,12 +450,18 @@ func (u *University) GetGuru(id int64) (g Guru) {
 		fmt.Println(err)
 		return Guru{}
 	}
+	g.Comments, err = getComments(u.db, id)
+	if err != nil {
+		fmt.Println(err)
+		return Guru{}
+	}
 	return
 }
 
 func (u *University) GetFaculty(id int64) ([]int64, error) {
 	var ids []int64
-	_, err := u.db.Select(&ids, "select Id from Guru where Faculty = ?", id)
+	_, err := u.db.Select(&ids, "select Id from Guru where Faculty = ? and"+
+		" Deleted = 0", id)
 	fmt.Print(ids)
 	return ids, err
 }

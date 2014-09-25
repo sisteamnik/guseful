@@ -1,6 +1,7 @@
 package university
 
 import (
+	"github.com/sisteamnik/guseful/comments"
 	"github.com/sisteamnik/guseful/rate"
 	"github.com/sisteamnik/guseful/user"
 )
@@ -17,8 +18,9 @@ type (
 		Post        int64 //i.e Академик-секретарь
 		Rate        int64
 
-		Features []GuruFeatures `db:"-"`
-		User     user.User      `db:"-"`
+		Features []GuruFeatures     `db:"-"`
+		User     user.User          `db:"-"`
+		Comments []comments.Comment `db:"-"`
 
 		Created int64
 		Updated int64

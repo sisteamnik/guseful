@@ -25,7 +25,8 @@ type (
 		defautloc string
 		sizes     []Size
 
-		Db *gorp.DbMap
+		Db       *gorp.DbMap
+		WebpAddr string
 	}
 	Size struct {
 		Width  int
