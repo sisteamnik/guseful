@@ -46,5 +46,8 @@ type (
 )
 
 func (u User) String() string {
+	if u.FirstName == "" && u.LastName == "" {
+		return fmt.Sprintf("%d", u.Id)
+	}
 	return fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 }
