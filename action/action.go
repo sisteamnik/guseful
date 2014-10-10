@@ -32,7 +32,8 @@ func NewActionApi(db *gorp.DbMap) (*ActionApi, error) {
 
 func (a *ActionApi) AddEvent(atype string, item, user, browser int64, remoteAddr, referer string) error {
 	e := Action{0, atype, item, user, browser, remoteAddr, referer, time.Now().UTC().UnixNano()}
-	return a.db.Insert(&e)
+	go a.db.Insert(&e)
+	return nil
 }
 
 func (a *ActionApi) GetBrowser(bid string) Browser {
@@ -54,8 +55,8 @@ func (a *ActionApi) AddBrowser(ua string) Browser {
 }
 
 func (a *ActionApi) UpdateBrowser(b Browser) error {
-	_, err := a.db.Update(&b)
-	return err
+	go a.db.Update(&b)
+	return nil
 }
 
 func genId() string {
