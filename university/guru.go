@@ -18,7 +18,7 @@ type (
 		Post        int64 //i.e Академик-секретарь
 		Rate        int64
 
-		Features []GuruFeatures     `db:"-"`
+		Features GuruFeaturesType   `db:"-"`
 		User     user.User          `db:"-"`
 		Comments []comments.Comment `db:"-"`
 
@@ -40,6 +40,8 @@ type (
 		Deleted int64
 		Version int64
 	}
+
+	GuruFeaturesType []GuruFeatures
 )
 
 type ByRate []Guru
@@ -47,3 +49,11 @@ type ByRate []Guru
 func (a ByRate) Len() int           { return len(a) }
 func (a ByRate) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByRate) Less(i, j int) bool { return a[i].Rate < a[j].Rate }
+
+func (c GuruFeaturesType) VoteCount() (r int64) {
+	for _, v := range c {
+		r += v.Votes.Behind
+		r += v.Votes.Against
+	}
+	return r
+}

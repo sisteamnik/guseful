@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/jinzhu/now"
+	"github.com/sisteamnik/guseful/chpu"
 	"github.com/sisteamnik/guseful/comments"
 	"github.com/sisteamnik/guseful/rate"
 	"github.com/sisteamnik/guseful/unixtime"
 	"github.com/sisteamnik/guseful/user"
-	"sort"
 	"time"
 )
 
@@ -30,12 +30,14 @@ func (u *University) AddTables() error {
 	u.db.AddTable(Audithory{}).SetKeys(true, "Id")
 	u.db.AddTable(Corps{}).SetKeys(true, "Id")
 	u.db.AddTable(Group{}).SetKeys(true, "Id")
+	u.db.AddTable(GroupSiblings{})
 	u.db.AddTable(GroupMembers{}).SetUniqueTogether("GroupId", "UserId")
 	u.db.AddTable(TrainingType{}).SetKeys(true, "Id")
 	u.db.AddTable(Attendance{}).SetKeys(true, "Id")
 	u.db.AddTable(Billing{}).SetKeys(true, "Id")
 	u.db.AddTable(Faculty{}).SetKeys(true, "Id")
 	u.db.AddTable(Departament{}).SetKeys(true, "Id")
+	u.db.AddTable(TrainingDirection{}).SetKeys(true, "Id")
 
 	u.db.AddTable(Diary{}).SetKeys(true, "Id")
 	u.db.AddTable(DiaryMarks{}).SetKeys(true, "Id")
@@ -59,38 +61,141 @@ func (u *University) CreateScheduleItem(s *ScheduleItem) error {
 	return u.db.Insert(s)
 }
 
-func (u *University) GetScheduleForGroup(groupId int64, periodtype int64) (Schedule, error) {
-	si := []ScheduleItemView{}
-	pt := ""
-	if periodtype != 0 {
-		pt = fmt.Sprintf(" and PeriodType = %v ", periodtype)
-	}
-	_, err := u.db.Select(&si, "select ScheduleItem.Id, PeriodType, Guru, Subject, "+
-		"Audithory, Corps, "+
-		" Start,Duration ,WeekDay, `Group`,TrainingType, Attendance,Billing, "+
-		"PeriodType.Title as PeriodTypeName,'Препод' as GuruName,"+
-		" `Subject`.`Title` as SubjectName,"+
-		" Audithory.Title as AudithoryName,Corps.Title as CorpsName,"+
-		" '' as StartName,'' as DurationName, "+
-		"'' as WeekDayName, `Group`.Title GroupName,"+
-		"TrainingType.Title TrainingTypeName,"+
-		"Attendance.Title as AttendanceName, Billing.Title as BillingName "+
-		"from ScheduleItem, PeriodType, Audithory, Corps, `Group`, TrainingType,"+
-		" Attendance, Billing, Subject  where PeriodType.Id"+
-		" = ScheduleItem.PeriodType and Audithory.Id = Audithory and Corps.Id"+
-		" = Corps and `Group`.Id = `Group` and TrainingType.Id = TrainingType"+
-		" and Subject.Id = Subject "+pt+" and ScheduleItem.`Group` in (select Id from"+
-		" `Group` where Parent = ? or Id = ?)", groupId, groupId)
-	for i := range si {
-		si[i].WeekDayName = weekDay(si[i].WeekDay)
-	}
-	result := Schedule(si)
-	result.cleanForDuration()
-	result.SortByTime()
-	return result, err
+func (u *University) GetScheduleForGroup(groupId int64) (ScheduleItems, error) {
+	si := ScheduleItems{}
+	_, err := u.db.Select(&si, "select * from ScheduleItem where `Group` in"+
+		" (select Id from `Group` where Parent = ? or Id = ?) and Deleted = 0",
+		groupId, groupId)
+	return si, err
 }
 
-func (s Schedule) cleanForDuration() {
+func (s ScheduleItemView) GetItems(tin int64, weekday,
+	start int64) ScheduleItems {
+	var res ScheduleItems
+	t := unixtime.Parse(tin)
+	s.Clean(t)
+
+	_, w := t.ISOWeek()
+	week := int64(w)
+
+	pt := PeriodTypeByWeek(week)
+
+	for _, v := range s.Items {
+		if v.WeekDay == weekday && start == v.GetStartMin() &&
+			(v.PeriodType == pt || v.PeriodType == 0 || v.PeriodType == 3) {
+			if v.PeriodType == 3 {
+				res = ScheduleItems{v}
+				return res
+			}
+			res = append(res, v)
+		}
+	}
+	if len(res) == 0 {
+		res = ScheduleItems{ScheduleItem{}}
+	}
+	return res
+}
+
+func (s ScheduleItemView) Clean(t time.Time) {
+	res := ScheduleItems{}
+	for i, v := range s.Items {
+		if v.Start+v.Duration < t.UnixNano() {
+			s.Items[i] = ScheduleItem{}
+		}
+	}
+	for _, v := range s.Items {
+		if v.Id != 0 {
+			res = append(res, v)
+		}
+	}
+	s.Items = res
+}
+
+func PeriodTypeByWeek(week int64) int64 {
+	t := time.Now().UTC()
+	var t2 time.Time
+
+	current_year := t.Year()
+	fmt.Println(current_year)
+	current_month := int(t.Month())
+	_, start_week := t.ISOWeek()
+	if current_month >= 9 {
+		t2, _ = time.Parse("1.2.2006", fmt.Sprintf("%d.%d.%d", 9, 1, current_year))
+	} else {
+		t2, _ = time.Parse("1.2.2006", fmt.Sprintf("%d.%d.%d", 9, 1, current_year-1))
+	}
+	t2 = t2.UTC()
+	_, start_week = t2.ISOWeek()
+	var pt int64
+	pt = 1
+	if start_week%2 != 0 && week%2 == 0 {
+		pt = 2
+	} else if start_week%2 == 0 && week%2 != 0 {
+		pt = 2
+	}
+	return pt
+}
+
+func (s ScheduleItemView) Subject(id int64) Subject {
+	for _, v := range s.Subjects {
+		if v.Id == id {
+			return v
+		}
+	}
+	return Subject{}
+}
+
+func (s ScheduleItem) GetStartMin() int64 {
+	h, m, _ := unixtime.Parse(s.Start).Clock()
+	return int64(h*60 + m)
+}
+
+func (s ScheduleItem) GetStartStr() string {
+	min := s.GetStartMin()
+	h := min / 60
+	m := min % 60
+	lay := "%d:%d"
+	if m < 10 {
+		lay = "%d:0%d"
+	}
+	return fmt.Sprintf(lay, h, m)
+}
+
+func (s ScheduleItems) GetLenPairs() int64 {
+	return int64(len(s.GetStartes()))
+}
+
+func (s ScheduleItems) GetStartes() []int64 {
+	var res []int64
+	for _, v := range s {
+		res = appendIfMissing(res, v.GetStartMin())
+	}
+	return res
+}
+
+func (s ScheduleItems) GetPairNum(id int64) int64 {
+	for _, v := range s {
+		if v.Id == id {
+			for j, k := range s.GetStartes() {
+				if k == v.GetStartMin() {
+					return int64(j)
+				}
+			}
+		}
+	}
+	return 0
+}
+
+func appendIfMissing(slice []int64, i int64) []int64 {
+	for _, ele := range slice {
+		if ele == i {
+			return slice
+		}
+	}
+	return append(slice, i)
+}
+
+/*func (s Schedule) cleanForDuration() {
 	var singles = []ScheduleItemView{}
 	for _, v := range s {
 		if v.Start > 1440 {
@@ -117,9 +222,9 @@ func (s Schedule) cleanForDuration() {
 		}
 	}
 	s = res
-}
+}*/
 
-func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView {
+/*func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView {
 	var result = map[int64]map[int64]map[int64][]ScheduleItemView{}
 	var i, j, k int64
 	for i = 1; i <= 5; i++ {
@@ -145,7 +250,7 @@ func (s Schedule) MapWeekDay() map[int64]map[int64]map[int64][]ScheduleItemView 
 		}
 	}
 	return result
-}
+}*/
 
 func normTime(a int64) int64 {
 	if a < 1440 {
@@ -159,46 +264,114 @@ func normTime(a int64) int64 {
 	return int64(dur.Minutes())
 }
 
-func (s Schedule) SortByTime() Schedule {
+/*func (s Schedule) SortByTime() Schedule {
 	sort.Sort(ByTime(s))
 	return s
+}*/
+
+func (u *University) PeriodTypeGetAll() PeriodTypes {
+	return periodTypes
 }
 
-func (u *University) CreatePeriodType(name string) (PeriodType, error) {
-	pt := PeriodType{}
-	pt.Title = name
-	err := u.db.Insert(&pt)
-	return pt, err
+func (u *University) PeriodTypeGet(id int64) (PeriodType, error) {
+	for _, v := range periodTypes {
+		if v.Id == id {
+			return v, nil
+		}
+	}
+	return PeriodType{}, errors.New("Not found")
 }
 
-func (u *University) GetPeriodTypes() []PeriodType {
-	var res []PeriodType
-	u.db.Select(&res, "select * from PeriodType")
-	return res
+func (u *University) WeekDayGetAll() WeekDays {
+	return weekDays
 }
 
-func (u *University) GetAudithories() []Audithory {
+func (u *University) WeekDayGet(id int64) (WeekDay, error) {
+	for _, v := range weekDays {
+		if v.Id == id {
+			return v, nil
+		}
+	}
+	return WeekDay{}, errors.New("Not found")
+}
+
+func (u *University) AudithoryGetAll() Audithories {
 	var res []Audithory
 	u.db.Select(&res, "select * from Audithory")
-	return res
+	return Audithories(res)
 }
 
-func (u *University) GetGroups() []Group {
-	var res []Group
+func (u *University) AudithoryCreate(a Audithory) (Audithory, error) {
+	a.Created = time.Now().UTC().UnixNano()
+	err := u.db.Insert(&a)
+	return a, err
+}
+
+func (u *University) AudithoryGet(id int64) (Audithory, error) {
+	f := Audithory{}
+	err := u.db.SelectOne(&f, "select * from Audithory where Id = ?", id)
+	return f, err
+}
+
+func (u *University) AudithoryUpdate(p Audithory) error {
+	_, err := u.db.Update(&p)
+	return err
+}
+
+func (u *University) GetGroups() Groups {
+	var res Groups
 	u.db.Select(&res, "select * from `Group`")
 	return res
 }
 
-func (u *University) GetCorpuses() []Corps {
-	var res []Corps
+func (u *University) CorpsGetAll() Corpuses {
+	var res Corpuses
 	u.db.Select(&res, "select * from Corps")
 	return res
 }
 
-func (u *University) GetTrainingTypes() []TrainingType {
-	var res []TrainingType
+func (u *University) CorpsGet(id int64) (Corps, error) {
+	var res Corps
+	err := u.db.SelectOne(&res, "select * from Corps where Id = ? limit 1", id)
+	return res, err
+}
+
+func (u *University) CorpsCreate(title string) (Corps,
+	error) {
+	f := Corps{}
+	f.Title = title
+	err := u.db.Insert(&f)
+	return f, err
+}
+
+func (u *University) CorpsUpdate(f Corps) error {
+	_, err := u.db.Update(&f)
+	return err
+}
+
+func (u *University) TrainingTypeGetAll() TrainingTypes {
+	var res TrainingTypes
 	u.db.Select(&res, "select * from TrainingType")
 	return res
+}
+
+func (u *University) TrainingTypeGet(id int64) (TrainingType, error) {
+	var res TrainingType
+	err := u.db.SelectOne(&res, "select * from TrainingType where Id = ? limit 1", id)
+	return res, err
+}
+
+func (u *University) TrainingTypeCreate(title string) (TrainingType,
+	error) {
+	f := TrainingType{}
+	f.Title = title
+	err := u.db.Insert(&f)
+	return f, err
+}
+
+func (u *University) TrainingTypeUpdate(f TrainingType) error {
+	_, err := u.db.Update(&f)
+	return err
 }
 
 func (u *University) GetAttendances() []Attendance {
@@ -213,23 +386,30 @@ func (u *University) GetBillings() []Billing {
 	return res
 }
 
-func (u *University) GetSubjects() []Subject {
-	var res []Subject
+func (u *University) SubjectGetAll() Subjects {
+	var res Subjects
 	u.db.Select(&res, "select * from Subject")
 	return res
 }
 
-func weekDay(id int64) string {
-	var days = map[int64]string{
-		1: "Понедельник",
-		2: "Вторник",
-		3: "Среда",
-		4: "Четверг",
-		5: "Пятница",
-		6: "Суббота",
-		7: "Воскресенье",
-	}
-	return days[id]
+func (u *University) SubjectGet(id int64) (Subject, error) {
+	var res Subject
+	err := u.db.SelectOne(&res, "select * from Subject where Id =?", id)
+	return res, err
+}
+
+func (u *University) SubjectCreate(title, shortname string) (Subject,
+	error) {
+	f := Subject{}
+	f.Title = title
+	f.ShortName = shortname
+	err := u.db.Insert(&f)
+	return f, err
+}
+
+func (u *University) SubjectUpdate(f Subject) error {
+	_, err := u.db.Update(&f)
+	return err
 }
 
 func couple(start int64) string {
@@ -261,11 +441,124 @@ func coupleNumber(start int64) int64 {
 	return couples[start]
 }
 
+var periodTypes = PeriodTypes{
+	PeriodType{ItemWithTitle{Id: 0, Title: "Каждую неделю"}},
+	PeriodType{ItemWithTitle{Id: 1, Title: "Числитель"}},
+	PeriodType{ItemWithTitle{Id: 2, Title: "Знаменатель"}},
+	PeriodType{ItemWithTitle{Id: 3, Title: "Один раз"}},
+}
+
+var weekDays = WeekDays{
+	WeekDay{ItemWithTitle{1, "Понедельник"}},
+	WeekDay{ItemWithTitle{2, "Вторник"}},
+	WeekDay{ItemWithTitle{3, "Среда"}},
+	WeekDay{ItemWithTitle{4, "Четверг"}},
+	WeekDay{ItemWithTitle{5, "Пятница"}},
+	WeekDay{ItemWithTitle{6, "Суббота"}},
+	WeekDay{ItemWithTitle{7, "Воскресенье"}},
+}
+
+//faculties
+
+func (u *University) FacultyGetAll() Faculties {
+	f := Faculties{}
+	u.db.Select(&f, "select * from Faculty")
+	return f
+}
+
+func (u *University) FacultyCreate(title, shortname string) (Faculty, error) {
+	f := Faculty{}
+	f.Title = title
+	f.ShortName = shortname
+	f.Slug = chpu.Chpu(shortname)
+	err := u.db.Insert(&f)
+	return f, err
+}
+
+func (u *University) FacultyGet(id int64) (Faculty, error) {
+	f := Faculty{}
+	err := u.db.SelectOne(&f, "select * from Faculty where Id = ?", id)
+	return f, err
+}
+
+func (u *University) FacultyUpdate(f Faculty) error {
+	f.Slug = chpu.Chpu(f.ShortName)
+	_, err := u.db.Update(&f)
+	return err
+}
+
+//groups
+//allias GetGroups
+func (u *University) GroupGetAll() Groups {
+	g := []Group{}
+	u.db.Select(&g, "select * from `Group`")
+	return Groups(g)
+}
+
+func (u *University) GroupCreate(g Group) (Group, error) {
+	g.Created = time.Now().UTC().UnixNano()
+	g.Slug = chpu.Chpu(fmt.Sprintf("%s-%d-%d", g.Title, g.Start, g.End))
+	err := u.db.Insert(&g)
+	return g, err
+}
+
+func (u *University) GroupGet(id int64) (Group, error) {
+	t := Group{}
+	err := u.db.SelectOne(&t, "select * from `Group` where Id = ?",
+		id)
+	return t, err
+}
+
+func (u *University) GroupGetBySlug(slug string) (Group, error) {
+	t := Group{}
+	err := u.db.SelectOne(&t, "select * from `Group` where Slug = ?",
+		slug)
+	return t, err
+}
+
+func (u *University) GroupUpdate(g Group) error {
+	g.Updated = time.Now().UTC().UnixNano()
+	g.Slug = chpu.Chpu(fmt.Sprintf("%s-%d-%d", g.Title, g.Start, g.End))
+	_, err := u.db.Update(&g)
+	return err
+}
+
+//training directions
+
+func (u *University) TrainingDirectionGetAll() TrainingDirections {
+	t := TrainingDirections{}
+	u.db.Select(&t, "select * from TrainingDirection")
+	return t
+}
+
+func (u *University) TrainingDirectionCreate(title,
+	code, desc string) (TrainingDirection, error) {
+	t := TrainingDirection{}
+	t.Title = title
+	t.Code = code
+	t.Description = desc
+	err := u.db.Insert(&t)
+	return t, err
+}
+
+func (u *University) TrainingDirectionGet(id int64) (TrainingDirection, error) {
+	t := TrainingDirection{}
+	err := u.db.SelectOne(&t, "select * from TrainingDirection where Id = ?",
+		id)
+	return t, err
+}
+
+func (u *University) TrainingDirectionUpdate(t TrainingDirection) error {
+	_, err := u.db.Update(&t)
+	return err
+}
+
 //gurus
 //todo add all fields
 
 func (u *University) IsGuru(uid int64) (int64, bool) {
-	id, _ := u.db.SelectInt("select Id from Guru where UserId = ? and Deleted = 0")
+	id, _ := u.db.SelectInt("select Id from Guru where UserId = ?" +
+		" and Deleted = 0")
 	if id == 0 {
 		return id, false
 	}
@@ -288,6 +581,16 @@ func (u *University) CreateGuru(userid int64) (Guru, error) {
 	err = createRate(tx, g.Id)
 	tx.Commit()
 	return g, err
+}
+
+func (u *University) UpdateGuru(g Guru) error {
+	old := u.GetGuru(g.Id)
+	if old.Id != 0 {
+		old.Updated = time.Now().UTC().UnixNano()
+		old.Faculty = g.Faculty
+		u.db.Update(&old)
+	}
+	return nil
 }
 
 func createFeatures(db *gorp.Transaction, guruid int64) error {
@@ -351,8 +654,8 @@ func getVotesforRate(db *gorp.Transaction, rateid int64) ([]rate.Vote, error) {
 	return r, err
 }
 
-func (u *University) GetGuruFeatures(gid int64) ([]GuruFeatures, error) {
-	f := []GuruFeatures{}
+func (u *University) GetGuruFeatures(gid int64) (GuruFeaturesType, error) {
+	f := GuruFeaturesType{}
 	tx, err := u.db.Begin()
 	if err != nil {
 		return f, err
@@ -412,24 +715,8 @@ func (u *University) BotGurus(offset, limit int64) (ids []int64) {
 	return
 }
 
-func (u *University) GetAllGurus() (g []Guru) {
-	_, err := u.db.Select(&g, "select * from Guru where Deleted = 0 order by Rate desc")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for i := range g {
-		g[i].Features, err = u.GetGuruFeatures(g[i].Id)
-		if err != nil {
-			fmt.Println(err)
-			return []Guru{}
-		}
-		g[i].User, err = user.Get(u.db, g[i].UserId)
-		if err != nil {
-			fmt.Println(err)
-			return []Guru{}
-		}
-	}
+func (u *University) GetAllGurus() (g []int64) {
+	u.db.Select(&g, "select Id from Guru where Deleted = 0 order by Rate desc")
 	return
 }
 
@@ -456,6 +743,79 @@ func (u *University) GetGuru(id int64) (g Guru) {
 		return Guru{}
 	}
 	return
+}
+
+func (u *University) LoadGurus() []Guru {
+	start := time.Now()
+	var features GuruFeaturesType
+	var users []user.User
+	var cs []comments.Comment
+	var gurus []Guru
+	var votes []rate.Vote
+	var rates []rate.Rate
+
+	tx, _ := u.db.Begin()
+
+	cs, _ = comments.GetCommentsForType(tx, "guru")
+	_, err := tx.Select(&users, "select * from User where Id in (select"+
+		" UserId from Guru where Deleted = 0)")
+	_, err = tx.Select(&features, "select * from GuruFeatures")
+	_, err = tx.Select(&gurus, "select * from Guru where Deleted = 0")
+	_, err = tx.Select(&rates, "select * from Rate where ItemType in (0,1,2)")
+	_, err = tx.Select(&votes, "select * from Vote where RateId in (select Id from Rate where ItemType in(0,1,2))")
+	if err != nil {
+		panic(err)
+	}
+	tx.Commit()
+
+	fmt.Println(len(features), len(users), len(cs), len(gurus), len(votes), len(rates))
+
+	for o, p := range rates {
+		for _, w := range votes {
+			if w.RateId == p.Id {
+				rates[o].Votes = append(rates[o].Votes, w)
+			}
+		}
+
+	}
+
+	for i, v := range gurus {
+		for t, k := range features {
+			if k.GuruId == v.Id {
+				var fid int64
+				switch k.Feature {
+				case "humor":
+					fid = 0
+					break
+				case "goodwill":
+					fid = 1
+					break
+				case "understandability":
+					fid = 2
+					break
+				}
+				for _, j := range rates {
+					if j.ItemType == fid && j.ItemId == k.GuruId {
+						features[t].Votes = j
+						gurus[i].Features = append(gurus[i].Features,
+							features[t])
+					}
+				}
+			}
+		}
+		for _, k := range cs {
+			if k.ItemType == "guru" && k.ItemId == v.Id {
+				gurus[i].Comments = append(gurus[i].Comments, k)
+			}
+		}
+		for _, u := range users {
+			if u.Id == v.UserId {
+				gurus[i].User = u
+			}
+		}
+	}
+	fmt.Println("DADADA ", time.Now().Sub(start), " DADADA")
+	return gurus
 }
 
 func (u *University) GetFaculty(id int64) ([]int64, error) {

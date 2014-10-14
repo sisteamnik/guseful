@@ -1,8 +1,11 @@
 package university
 
 import (
+	"errors"
 	"github.com/coopernurse/gorp"
 	"sort"
+	"strconv"
+	"time"
 )
 
 type (
@@ -26,22 +29,29 @@ type (
 		TrainingType int64
 		Attendance   int64
 		Billing      int64
+
+		Created int64
+		Updated int64
+		Deleted int64
+		Version int64
 	}
 
+	ScheduleItems []ScheduleItem
+
 	ScheduleItemView struct {
-		ScheduleItem
-		PeriodTypeName   string
-		GuruName         string
-		SubjectName      string
-		AudithoryName    string
-		CorpsName        string
-		StartName        string
-		DurationName     string
-		WeekDayName      string
-		GroupName        string
-		TrainingTypeName string
-		AttendanceName   string
-		BillingName      string
+		Gurus              []Guru
+		Audithories        Audithories
+		Corpuses           Corpuses
+		PeriodTypes        PeriodTypes
+		Subjects           Subjects
+		Groups             Groups
+		TrainingTypes      TrainingTypes
+		Faculties          Faculties
+		Departaments       Departaments
+		TrainingDirections TrainingDirections
+		WeekDays           WeekDays
+
+		Items ScheduleItems
 	}
 
 	ItemWithTitle struct {
@@ -53,35 +63,88 @@ type (
 		ItemWithTitle
 	}
 
+	PeriodTypes []PeriodType
+
 	Subject struct {
 		ItemWithTitle
+		ShortName string
 	}
+
+	Subjects []Subject
 
 	Audithory struct {
 		ItemWithTitle
+		ShortName     string
+		Volume        int64
+		Tables        int64
+		Projector     bool
+		Rosette       bool
+		Сomputers     int64
+		WiredInternet bool
+		FreeWifi      bool
+		Curtains      bool
+		Laboratory    bool
+
+		CorpsId int64
+		Floor   int64
+
+		Owner   int64
+		Created int64
+		Deleted int64
+		Updated int64
+		Version int64
 	}
+
+	Audithories []Audithory
 
 	Corps struct {
 		ItemWithTitle
 	}
 
+	Corpuses []Corps
+
 	WeekDay struct {
 		ItemWithTitle
 	}
 
+	WeekDays []WeekDay
+
 	Group struct {
 		ItemWithTitle
-		Parent int64
+		Parent            int64
+		Code              string
+		Faculty           int64
+		TrainingDirection int64
+		Start             int64
+		End               int64
+		Own               bool
+		Slug              string
+
+		Owner   int64
+		Created int64
+		Updated int64
+		Deleted int64
+		Version int64
+	}
+
+	Groups []Group
+
+	GroupSiblings struct {
+		ParentId int64
+		GroupId  int64
 	}
 
 	GroupMembers struct {
-		GroupId int64
-		UserId  int64
+		GroupId    int64
+		UserId     int64
+		Permission int64
 	}
 
 	TrainingType struct {
 		ItemWithTitle
 	}
+
+	TrainingTypes []TrainingType
 
 	Attendance struct {
 		ItemWithTitle
@@ -93,15 +156,35 @@ type (
 
 	Faculty struct {
 		ItemWithTitle
+		ShortName string
+		Slug      string
 	}
+
+	Faculties []Faculty
 
 	Departament struct {
 		ItemWithTitle
 		Parent int64
 	}
+
+	Departaments []Departament
+
+	TrainingDirection struct {
+		ItemWithTitle
+		Code          string
+		Description   string
+		Qualification int64
+	}
+
+	Qualification struct {
+		Id   int64
+		Name string
+	}
+
+	TrainingDirections []TrainingDirection
 )
 
-type ByTime []ScheduleItemView
+/*type ByTime []ScheduleItemView
 
 func (a ByTime) Len() int           { return len(a) }
 func (a ByTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
@@ -164,4 +247,92 @@ func (s Schedule) PeriodTypes() []int64 {
 	}
 	sort.Sort(Int64(res))
 	return res
+}*/
+
+func (g Group) Class() int64 {
+	t := time.Now().UTC()
+	n := t.Format("2006")
+	currentYear, err := strconv.ParseInt(n, 10, 64)
+	if err != nil {
+		return 0
+	}
+	years := currentYear - g.Start
+	if int(t.Month()) >= 9 {
+		years++
+		if g.End < g.Start+years {
+			return 0
+		}
+	}
+	return years
+}
+
+func (g Groups) GetByClass(class int64) Groups {
+	var res Groups
+	for _, v := range g {
+		if v.Class() == class {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
+func (g Groups) GetByFaculty(f int64) Groups {
+	var res Groups
+	for _, v := range g {
+		if v.Faculty == f {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
+func (g Groups) LenClasses() int64 {
+	classes := map[int64]bool{}
+	for _, v := range g {
+		classes[v.Class()] = true
+	}
+	delete(classes, 0)
+	return int64(len(classes))
+}
+
+func (g Groups) GetClasses() []int64 {
+	mr := []int64{}
+	h := map[int64]bool{}
+	for _, v := range g {
+		if v.Class() != 0 {
+			h[v.Class()] = true
+		}
+	}
+	for k := range h {
+		mr = append(mr, k)
+	}
+	sort.Sort(int64arr(mr))
+	return mr
+}
+
+type int64arr []int64
+
+func (a int64arr) Len() int           { return len(a) }
+func (a int64arr) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a int64arr) Less(i, j int) bool { return a[i] < a[j] }
+
+func (g Groups) ClassMap() map[int64]Groups {
+	mr := map[int64]Groups{}
+
+	for _, v := range g {
+		if v.Class() != 0 {
+			mr[v.Class()] = append(mr[v.Class()], v)
+		}
+
+	}
+	return mr
+}
+
+func (p PeriodTypes) Get(id int64) (PeriodType, error) {
+	for _, v := range p {
+		if v.Id == id {
+			return v, nil
+		}
+	}
+	return PeriodType{}, errors.New("Period type not found")
 }
