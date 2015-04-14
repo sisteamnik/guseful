@@ -36,6 +36,8 @@ func (r *RateLimiter) Try(remoteAddr, limitType string, maxCount,
 		tx.Rollback()
 		return false
 	}
+	tx.Exec("delete from RateLimit where Created < ?", time.Now().UTC().
+		Truncate(15*time.Minute))
 	_, err = tx.Select(&rls, "select * from RateLimit where RemoteAddr = ? and"+
 		" limitType  = ?", remoteAddr, limitType)
 	if err != nil {

@@ -2,6 +2,7 @@ package img
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/disintegration/imaging"
@@ -33,7 +34,7 @@ func NewApi(db *gorp.DbMap, path string, net uint8, dbname,
 	a.dbname = dbname
 	a.Db = db
 	a.path = path
-	a.neting = net
+	a.nesting = net
 	a.defautloc = defaultloc
 	a.sizes = sizes
 	return a
@@ -53,7 +54,7 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 
 	tm := time.Now()
 
-	if name == "" || len(name) <= int(a.neting) {
+	if name == "" || len(name) <= int(a.nesting) {
 		name = randName()
 		named = false
 	}
@@ -73,34 +74,33 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 
 	path := a.path
 
-	for i := uint8(0); i < a.neting; i++ {
+	for i := uint8(0); i < a.nesting; i++ {
 		path += "/" + name[i:i+1]
 	}
 
 	os.MkdirAll(path, 0777)
-	go func() {
-		for _, v := range a.sizes {
-			save_path := path + "/" + name + "_" + strconv.Itoa(v.Width) + "x" +
-				strconv.Itoa(v.Height)
-			save_path_with_ex := save_path + ".jpg"
-			if v.Crop == "thumb" {
-				c := imaging.Thumbnail(img, v.Width, v.Height, imaging.Lanczos)
-				imaging.Save(c, save_path_with_ex)
-			} else if v.Crop == "fit" {
-				c := imaging.Fit(img, v.Width, v.Height, imaging.Lanczos)
-				imaging.Save(c, save_path_with_ex)
-			}
-			if a.WebpAddr != "" {
-				cmd := exec.Command(a.WebpAddr, save_path_with_ex, "-o",
-					save_path+".webp")
-				err := cmd.Run()
-				if err != nil {
-					panic(err)
-				}
-			}
-
+	for _, v := range a.sizes {
+		save_path := path + "/" + name + "_" + strconv.Itoa(v.Width) + "x" +
+			strconv.Itoa(v.Height)
+		save_path_with_ex := save_path + ".jpg"
+		if v.Crop == "thumb" {
+			c := imaging.Thumbnail(img, v.Width, v.Height, imaging.Lanczos)
+			imaging.Save(c, save_path_with_ex)
+		} else if v.Crop == "fit" {
+			c := imaging.Fit(img, v.Width, v.Height, imaging.Lanczos)
+			imaging.Save(c, save_path_with_ex)
 		}
-	}()
+		if a.WebpAddr != "" {
+			cmd := exec.Command(a.WebpAddr, save_path_with_ex, "-o",
+				save_path+".webp")
+			err := cmd.Run()
+			if err != nil {
+				fmt.Println(err)
+				return Img{}, errors.New("Webp Not Working")
+			}
+		}
+
+	}
 	out, err := os.Create(path + "/" + name + ".jpg")
 	if err != nil {
 		return Img{}, err
@@ -113,7 +113,8 @@ func (a *Api) Create(data []byte, name string, descr string) (Img, error) {
 			path+"/"+name+".webp")
 		err := cmd.Run()
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return Img{}, errors.New("Webp Not Working")
 		}
 	}
 

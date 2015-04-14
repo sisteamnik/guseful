@@ -1,5 +1,10 @@
 package eav
 
+import (
+	"fmt"
+	"strings"
+)
+
 //todo delete catehory
 
 type (
@@ -8,6 +13,7 @@ type (
 		Get(interface{}, ...interface{}) (interface{}, error)
 		Update(...interface{}) (int64, error)
 		Delete(...interface{}) (int64, error)
+		Select(interface{}, string, ...interface{}) ([]interface{}, error)
 		SelectOne(interface{}, string, ...interface{}) error
 	}
 
@@ -95,7 +101,38 @@ func (e *Eav) GetAttrId(name, cat, unit, priceAffect, value int64) int64 {
 }
 
 func (e *Eav) SetAttrForProduct(attrid, productid int64) {
+	res := Attributes{}
+	e.db.SelectOne(&res, "select * from Attributes where ProductId =? and"+
+		" AttributeId =? ", productid, attrid)
+	if res.AttributeId == 0 {
+		res.AttributeId = attrid
+		res.ProductId = productid
+		e.db.Insert(&res)
+	}
+}
 
+func (e *Eav) GetProductAttributes(productid int64) []int64 {
+	var res []int64
+	e.db.Select(&res, "select AttributeId from Attributes where ProductId = ?",
+		productid)
+	return res
+}
+
+func (e *Eav) GetAttributes(ids ...int64) []Attribute {
+	if len(ids) == 0 {
+		return []Attribute{}
+	}
+	var res []Attribute
+	args := make([]interface{}, len(ids))
+	for i := range ids {
+		args[i] = ids[i]
+	}
+	_, err := e.db.Select(&res, "select * from Attribute where Id in (0"+
+		strings.Repeat(",?", len(args))+")", args...)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return res
 }
 
 func (e *Eav) GetAttrValue(q interface{}) AttributeValue {

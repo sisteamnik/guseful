@@ -99,6 +99,8 @@ type (
 
 	Corps struct {
 		ItemWithTitle
+		Own       bool
+		GeoObject int64
 	}
 
 	Corpuses []Corps
@@ -119,6 +121,7 @@ type (
 		End               int64
 		Own               bool
 		Slug              string
+		Verify            bool
 
 		Owner   int64
 		Created int64

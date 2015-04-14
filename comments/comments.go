@@ -20,6 +20,15 @@ type Comment struct {
 	Version int64
 }
 
+func GetCommentsForType(db *gorp.Transaction, itemtype string) ([]Comment,
+	error) {
+	var cs []Comment
+	_, err := db.Select(&cs, "select * from Comment where and"+
+		" ItemType = ? order by Id desc",
+		itemtype)
+	return cs, err
+}
+
 func GetComments(db *gorp.DbMap, itemid int64, itemtype string) ([]Comment,
 	error) {
 	var cs []Comment

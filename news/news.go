@@ -1,12 +1,17 @@
 package news
 
+import (
+	"github.com/sisteamnik/guseful/rate"
+	"github.com/sisteamnik/guseful/tags"
+)
+
 type (
 	New struct {
 		Id          int64
 		Title       string
-		Url         string
+		Slug        string
 		Description string
-		Body        string
+		Body        []byte
 		ImgId       int64
 		Views       int64
 		OwnerId     int64
@@ -18,27 +23,14 @@ type (
 		Updated int64
 		Version int64
 
-		ImgUrl string   `db:"-"`
-		Images []string `db:"-"`
-		Tags   []Tag    `db:"-"`
+		ImgUrl string     `db:"-"`
+		Tags   []tags.Tag `db:"-"`
+		Images []int64    `db:"-"`
+		Rate   rate.Rate  `db:"-"`
 	}
 
-	Tag struct {
-		Id          int64
-		Title       string
-		Url         string
-		Description string
-		ImgId       int64
-
-		Created int64
-		Updated int64
-		Version int64
-
-		ImgUrl string `db:"-"`
-	}
-
-	Tags struct {
-		NewId int64
-		TagId int64
+	NewImages struct {
+		NewId   int64
+		ImageId int64
 	}
 )

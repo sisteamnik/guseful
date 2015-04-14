@@ -20,7 +20,7 @@ type (
 
 	Api struct {
 		path      string
-		neting    uint8
+		nesting   uint8
 		dbname    string
 		defautloc string
 		sizes     []Size

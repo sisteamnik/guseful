@@ -1,12 +1,12 @@
 package user
 
 import (
-	"code.google.com/p/go.crypto/bcrypt"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"github.com/coopernurse/gorp"
 	"github.com/sisteamnik/guseful/phone"
+	"golang.org/x/crypto/bcrypt"
 	"math/big"
 	"time"
 )
@@ -178,7 +178,7 @@ func generateConfirmation(db *gorp.DbMap, userid int64) (UserConfirmation,
 	}
 	code := 1000 + b.Int64()
 	res := UserConfirmation{UserId: userid, Code: code, Created: time.Now().
-					UnixNano()}
+		UnixNano()}
 	err = db.Insert(&res)
 	if err != nil {
 		return UserConfirmation{}, err

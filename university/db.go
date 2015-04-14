@@ -38,6 +38,7 @@ func (u *University) AddTables() error {
 	u.db.AddTable(Faculty{}).SetKeys(true, "Id")
 	u.db.AddTable(Departament{}).SetKeys(true, "Id")
 	u.db.AddTable(TrainingDirection{}).SetKeys(true, "Id")
+	u.db.AddTable(Qualification{}).SetKeys(true, "Id")
 
 	u.db.AddTable(Diary{}).SetKeys(true, "Id")
 	u.db.AddTable(DiaryMarks{}).SetKeys(true, "Id")
@@ -72,7 +73,7 @@ func (u *University) GetScheduleForGroup(groupId int64) (ScheduleItems, error) {
 func (s ScheduleItemView) GetItems(tin int64, weekday,
 	start int64) ScheduleItems {
 	var res ScheduleItems
-	t := unixtime.Parse(tin)
+	t := unixtime.Parse(tin).In(time.Now().Location())
 	s.Clean(t)
 
 	_, w := t.ISOWeek()
@@ -146,7 +147,7 @@ func (s ScheduleItemView) Subject(id int64) Subject {
 }
 
 func (s ScheduleItem) GetStartMin() int64 {
-	h, m, _ := unixtime.Parse(s.Start).Clock()
+	h, m, _ := unixtime.Parse(s.Start).In(time.Now().Location()).Clock()
 	return int64(h*60 + m)
 }
 
@@ -162,15 +163,16 @@ func (s ScheduleItem) GetStartStr() string {
 }
 
 func (s ScheduleItems) GetLenPairs() int64 {
-	return int64(len(s.GetStartes()))
+	return 6 //int64(len(s.GetStartes()))
 }
 
 func (s ScheduleItems) GetStartes() []int64 {
-	var res []int64
-	for _, v := range s {
-		res = appendIfMissing(res, v.GetStartMin())
-	}
-	return res
+	//var res []int64
+	//for _, v := range s {
+	//	res = appendIfMissing(res, v.GetStartMin())
+	//}
+	minutes := []int64{510, 610, 720, 820, 920}
+	return minutes
 }
 
 func (s ScheduleItems) GetPairNum(id int64) int64 {
@@ -256,7 +258,7 @@ func normTime(a int64) int64 {
 	if a < 1440 {
 		return a
 	}
-	t := unixtime.Parse(a)
+	t := unixtime.Parse(a).In(time.Now().Location())
 	t = t.In(time.Now().Location())
 	dur := t.Sub(now.New(t).BeginningOfDay())
 	//fmt.Println(t.Format("02.01.2006 15:04"),
@@ -498,6 +500,17 @@ func (u *University) GroupGetAll() Groups {
 func (u *University) GroupCreate(g Group) (Group, error) {
 	g.Created = time.Now().UTC().UnixNano()
 	g.Slug = chpu.Chpu(fmt.Sprintf("%s-%d-%d", g.Title, g.Start, g.End))
+	if g.Parent != 0 {
+		gp, err := u.GroupGet(g.Parent)
+		if err != nil {
+			return g, err
+		}
+		g.Start = gp.Start
+		g.End = gp.End
+		g.Code = gp.Code
+		g.Faculty = gp.Faculty
+		g.TrainingDirection = gp.TrainingDirection
+	}
 	err := u.db.Insert(&g)
 	return g, err
 }
@@ -521,6 +534,12 @@ func (u *University) GroupUpdate(g Group) error {
 	g.Slug = chpu.Chpu(fmt.Sprintf("%s-%d-%d", g.Title, g.Start, g.End))
 	_, err := u.db.Update(&g)
 	return err
+}
+
+func (u *University) GroupGetChilds(gid int64) []Group {
+	var gs []Group
+	u.db.Select(&gs, "select * from `Group` where Parent = ?", gid)
+	return gs
 }
 
 //training directions
