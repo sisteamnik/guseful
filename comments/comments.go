@@ -24,7 +24,7 @@ func GetCommentsForType(db *gorp.Transaction, itemtype string) ([]Comment,
 	error) {
 	var cs []Comment
 	_, err := db.Select(&cs, "select * from Comment where"+
-		" ItemType = ? order by Id desc",
+		" ItemType = ? and Deleted = 0 order by Id desc",
 		itemtype)
 	return cs, err
 }
@@ -33,7 +33,7 @@ func GetComments(db *gorp.DbMap, itemid int64, itemtype string) ([]Comment,
 	error) {
 	var cs []Comment
 	_, err := db.Select(&cs, "select * from Comment where ItemId = ? and"+
-		" ItemType = ? order by Id desc",
+		" ItemType = ? and Deleted = 0 order by Id desc",
 		itemid, itemtype)
 	return cs, err
 }
@@ -50,4 +50,10 @@ func CreateComment(db *gorp.DbMap, itemid int64, itemtype string, comment []byte
 	}
 	err := db.Insert(&c)
 	return c, err
+}
+
+func DeleteComment(db *gorp.DbMap, commentId int64) error {
+	_, err := db.Exec("update Comment set Deleted = ? where Id = ?",
+		time.Now().UnixNano(), commentId)
+	return err
 }
