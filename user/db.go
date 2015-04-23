@@ -111,7 +111,7 @@ func (u *User) CheckLogin(db *gorp.DbMap, login string) (User, error) {
 	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
 		" or NickName = ? limit 1", ph, login, login)
 	if err != nil {
-		return user, err
+		return user, errors.New("User not found")
 	}
 	if user.Id == 0 {
 		return user, errors.New("User not found")
