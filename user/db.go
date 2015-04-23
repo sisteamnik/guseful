@@ -102,6 +102,12 @@ func (u *User) SignUp(db *gorp.DbMap, s SmsSender, firstname, lastname, phone,
 func (u *User) CheckLogin(db *gorp.DbMap, login string) (User, error) {
 	var user = User{}
 	ph, _ := phone.Normalize(login)
+	if ph == "" {
+		ph = login
+	}
+	if login == "" {
+		return user, errors.New("User not found")
+	}
 	err := db.SelectOne(&user, "select * from User where Phone = ? or Email = ?"+
 		" or NickName = ? limit 1", ph, login, login)
 	if err != nil {
